@@ -238,7 +238,7 @@ export default function Room() {
     });
   }, [isProducer, id]);
 
-  // Spacebar Playback handler matches FL Studio shortcut strictly
+  // Global Keybinds
   useEffect(() => {
      const handleKeyDown = async (e: KeyboardEvent) => {
         if (e.code === 'Space' && e.target === document.body) {
@@ -248,6 +248,23 @@ export default function Room() {
              setAudioInited(true);
            }
            useDawStore.getState().setIsPlaying(!useDawStore.getState().isPlaying);
+        }
+
+        if (useLobbyStore.getState().role === 'judge' && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) {
+           const currentRoom = useLobbyStore.getState().room;
+           if (!currentRoom) return;
+           const validUsers = currentRoom.users.filter(u => u.role === 'producer' || u.role === 'host');
+           const idx = validUsers.findIndex(u => u.username === useLobbyStore.getState().judgeWatching);
+           let nextIdx = idx;
+           
+           if (e.code === 'ArrowRight') nextIdx = (idx + 1) % validUsers.length;
+           if (e.code === 'ArrowLeft') nextIdx = idx <= 0 ? validUsers.length - 1 : idx - 1;
+           
+           const nextUser = validUsers[nextIdx];
+           if (nextUser) {
+               useLobbyStore.getState().setJudgeWatching(nextUser.username);
+               import('../socket/socket').then(({ socket }) => socket.emit('request_state_sync', { roomId: id, targetUsername: nextUser.username }));
+           }
         }
      };
      window.addEventListener('keydown', handleKeyDown);
@@ -358,23 +375,22 @@ export default function Room() {
             })}
 
            {/* Overlays */}
-           {/* Overlays */}
            {role === 'judge' && room.users.some(u => u.role !== 'judge') && (
                <>
-                   {/* Giant Spectating Indicator */}
-                   <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[110] flex flex-col items-center pointer-events-none">
-                      <div className="text-[#ff7d2e] font-black text-6xl tracking-widest drop-shadow-[0_0_15px_#ff7d2e] textShadow animate-pulse">
+                   {/* Spectating Indicator */}
+                   <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[110] flex flex-col items-center pointer-events-none bg-black/60 px-8 py-3 rounded-2xl backdrop-blur-md border border-[var(--fl-border)] shadow-[0_0_20px_rgba(0,0,0,0.8)]">
+                      <div className="text-[#ff7d2e] font-black text-2xl tracking-widest textShadow animate-pulse">
                           SPECTATING: {judgeWatching}
                       </div>
-                      <div className="text-white/50 font-bold tracking-widest mt-2 uppercase text-xl">
-                          You are in read-only mode
+                      <div className="text-white/50 font-bold tracking-widest uppercase text-[10px]">
+                          Read-only Mode
                       </div>
                    </div>
 
-                   {/* Giant Navigation Arrows */}
-                   <div className="absolute inset-y-0 left-8 px-4 flex items-center z-[110]">
+                   {/* Navigation Arrows */}
+                   <div className="absolute inset-y-0 left-4 px-2 flex items-center z-[110]">
                        <button 
-                           className="bg-black/50 hover:bg-[#ff7d2e]/90 text-white p-6 rounded-2xl backdrop-blur-sm border-2 border-white/10 hover:border-white transition-all transform hover:scale-110 shadow-[0_0_30px_rgba(0,0,0,0.8)]"
+                           className="bg-black/40 hover:bg-[#ff7d2e] text-white p-3 rounded-xl backdrop-blur-sm border border-white/10 hover:border-white transition-all shadow-xl hover:scale-110 flex items-center justify-center opacity-70 hover:opacity-100"
                            onClick={() => {
                                const validUsers = room.users.filter(u => u.role === 'producer' || u.role === 'host');
                                const idx = validUsers.findIndex(u => u.username === judgeWatching);
@@ -382,19 +398,17 @@ export default function Room() {
                                const nextUser = validUsers[nextIdx];
                                if (nextUser) {
                                    setJudgeWatching(nextUser.username);
-                                   if ((window as any).judgeMap?.[nextUser.username]) {
-                                       useDawStore.setState((window as any).judgeMap[nextUser.username]);
-                                   }
+                                   import('../socket/socket').then(({ socket }) => socket.emit('request_state_sync', { roomId: id, targetUsername: nextUser.username }));
                                }
                            }}
                        >
-                           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
                        </button>
                    </div>
                    
-                   <div className="absolute inset-y-0 right-8 px-4 flex items-center z-[110]">
+                   <div className="absolute inset-y-0 right-4 px-2 flex items-center z-[110]">
                        <button 
-                           className="bg-black/50 hover:bg-[#ff7d2e]/90 text-white p-6 rounded-2xl backdrop-blur-sm border-2 border-white/10 hover:border-white transition-all transform hover:scale-110 shadow-[0_0_30px_rgba(0,0,0,0.8)]"
+                           className="bg-black/40 hover:bg-[#ff7d2e] text-white p-3 rounded-xl backdrop-blur-sm border border-white/10 hover:border-white transition-all shadow-xl hover:scale-110 flex items-center justify-center opacity-70 hover:opacity-100"
                            onClick={() => {
                                const validUsers = room.users.filter(u => u.role === 'producer' || u.role === 'host');
                                const idx = validUsers.findIndex(u => u.username === judgeWatching);
@@ -402,13 +416,11 @@ export default function Room() {
                                const nextUser = validUsers[nextIdx];
                                if (nextUser) {
                                    setJudgeWatching(nextUser.username);
-                                   if ((window as any).judgeMap?.[nextUser.username]) {
-                                       useDawStore.setState((window as any).judgeMap[nextUser.username]);
-                                   }
+                                   import('../socket/socket').then(({ socket }) => socket.emit('request_state_sync', { roomId: id, targetUsername: nextUser.username }));
                                }
                            }}
                        >
-                           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
                        </button>
                    </div>
                </>
