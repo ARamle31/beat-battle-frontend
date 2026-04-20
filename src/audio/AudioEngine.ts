@@ -159,10 +159,10 @@ class AudioEngine {
 
           const partEvents = track.notes.map((note: any) => {
               return { 
-                  time: note.time * (Tone.Transport.PPQ / 4) + "i", 
+                  time: Math.round(note.time * (Tone.Transport.PPQ / 4)) + "i", 
                   pitch: note.pitch, 
                   velocity: note.velocity,
-                  duration: note.duration * (Tone.Transport.PPQ / 4) + "i"
+                  duration: Math.round(note.duration * (Tone.Transport.PPQ / 4)) + "i"
               };
           });
 
