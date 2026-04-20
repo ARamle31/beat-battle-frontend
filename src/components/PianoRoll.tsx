@@ -51,6 +51,9 @@ export default function PianoRoll() {
   const [lassoBox, setLassoBox] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
   const [lassoStart, setLassoStart] = useState({ x: 0, y: 0 });
   
+  const [showStrumizer, setShowStrumizer] = useState(false);
+  const [strumTimeOffset, setStrumTimeOffset] = useState(0.125);
+  
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const keysContainerRef = useRef<HTMLDivElement>(null);
   const rulerContainerRef = useRef<HTMLDivElement>(null);
@@ -170,27 +173,12 @@ export default function PianoRoll() {
           if (!track || track.notes.length === 0) return;
           
           let targetIds = selectedNoteIds.length > 1 ? selectedNoteIds : track.notes.map(n => n.id);
-          if (targetIds.length < 2) return;
+          if (targetIds.length < 2) {
+              alert("Strumizer Error: You must select a chord (at least 2 overlapping notes) to strumize.");
+              return;
+          }
           
-          useDawStore.getState().commitHistory();
-          
-          const strumOffset = 0.125;
-          const targetNotes = track.notes.filter(n => targetIds.includes(n.id));
-          
-          const timeGroups = targetNotes.reduce((acc, note) => {
-              if (!acc[note.time]) acc[note.time] = [];
-              acc[note.time].push(note);
-              return acc;
-          }, {} as Record<number, typeof targetNotes>);
-
-          Object.values(timeGroups).forEach(group => {
-              group.sort((a, b) => NOTES.indexOf(b.pitch) - NOTES.indexOf(a.pitch));
-              group.forEach((note, index) => {
-                   if (index > 0) {
-                      useDawStore.getState().updateNote(selectedTrackId, note.id, { time: note.time + (strumOffset * index) });
-                   }
-              });
-          });
+          setShowStrumizer(true);
           return;
       }
       
@@ -742,6 +730,59 @@ export default function PianoRoll() {
         </div>
 
       </div>
+      
+      {showStrumizer && (
+        <div className="absolute top-10 right-10 bg-[#292D32] border border-[#3E4A53] shadow-2xl p-4 w-64 rounded-sm z-[999] font-sans">
+           <div className="flex justify-between items-center mb-4 border-b border-[#3E4A53] pb-2">
+              <span className="text-[#DDE2E5] text-xs font-bold uppercase tracking-widest">Strumizer</span>
+              <button className="text-[#ff4444] hover:text-[#ff6666]" onClick={() => setShowStrumizer(false)}>X</button>
+           </div>
+           
+           <div className="flex flex-col gap-4 mb-6">
+              <div className="flex flex-col gap-1">
+                 <div className="flex justify-between text-[10px] text-[#A6B2BA] uppercase font-bold">
+                    <span>Time Offset</span>
+                    <span>{strumTimeOffset.toFixed(3)}</span>
+                 </div>
+                 <input 
+                    type="range" 
+                    min="0" max="0.5" step="0.005" 
+                    value={strumTimeOffset} 
+                    onChange={e => setStrumTimeOffset(parseFloat(e.target.value))}
+                    className="w-full accent-[var(--fl-green)]"
+                 />
+              </div>
+           </div>
+           
+           <div className="flex justify-end gap-2">
+              <button 
+                 onClick={() => setShowStrumizer(false)}
+                 className="px-3 py-1 bg-[#1A1C1E] text-[#DDE2E5] text-xs rounded hover:bg-[#3E4A53] transition-colors"
+               >Cancel</button>
+              <button 
+                 onClick={() => {
+                     if (!selectedTrack) return;
+                     useDawStore.getState().commitHistory();
+                     let targetIds = selectedNoteIds.length > 1 ? selectedNoteIds : selectedTrack.notes.map(n => n.id);
+                     const targetNotes = selectedTrack.notes.filter(n => targetIds.includes(n.id));
+                     const timeGroups = targetNotes.reduce((acc, note) => {
+                         if (!acc[note.time]) acc[note.time] = [];
+                         acc[note.time].push(note);
+                         return acc;
+                     }, {} as Record<number, typeof targetNotes>);
+                     Object.values(timeGroups).forEach(group => {
+                         group.sort((a, b) => NOTES.indexOf(b.pitch) - NOTES.indexOf(a.pitch));
+                         group.forEach((note, index) => {
+                             if (index > 0) updateNote(selectedTrack.id, note.id, { time: note.time + (strumTimeOffset * index) });
+                         });
+                     });
+                     setShowStrumizer(false);
+                 }}
+                 className="px-3 py-1 bg-[var(--fl-green)] text-black text-xs font-bold rounded hover:brightness-125 transition-all"
+               >Accept</button>
+           </div>
+        </div>
+      )}
     </div>
   );
 }
