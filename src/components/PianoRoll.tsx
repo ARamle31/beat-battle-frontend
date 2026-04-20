@@ -164,6 +164,36 @@ export default function PianoRoll() {
           return;
       }
       
+      if (e.altKey && e.key.toLowerCase() === 's') {
+          e.preventDefault();
+          let track = useDawStore.getState().tracks.find(t => t.id === selectedTrackId);
+          if (!track || track.notes.length === 0) return;
+          
+          let targetIds = selectedNoteIds.length > 1 ? selectedNoteIds : track.notes.map(n => n.id);
+          if (targetIds.length < 2) return;
+          
+          useDawStore.getState().commitHistory();
+          
+          const strumOffset = 0.125;
+          const targetNotes = track.notes.filter(n => targetIds.includes(n.id));
+          
+          const timeGroups = targetNotes.reduce((acc, note) => {
+              if (!acc[note.time]) acc[note.time] = [];
+              acc[note.time].push(note);
+              return acc;
+          }, {} as Record<number, typeof targetNotes>);
+
+          Object.values(timeGroups).forEach(group => {
+              group.sort((a, b) => NOTES.indexOf(b.pitch) - NOTES.indexOf(a.pitch));
+              group.forEach((note, index) => {
+                   if (index > 0) {
+                      useDawStore.getState().updateNote(selectedTrackId, note.id, { time: note.time + (strumOffset * index) });
+                   }
+              });
+          });
+          return;
+      }
+      
       if ((e.ctrlKey || e.shiftKey) && e.key.startsWith('Arrow')) {
           e.preventDefault();
           

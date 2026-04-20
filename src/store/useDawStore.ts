@@ -75,16 +75,16 @@ export const useDawStore = create<DawState>((set) => ({
   tracks: [
     {
       id: 'track-1',
-      name: 'Default Synth',
-      type: 'synth',
-      oscillatorType: 'sawtooth',
-      volume: 0.4,
+      name: 'Grand Piano',
+      type: 'sampler',
+      sampleUrl: 'https://tonejs.github.io/audio/salamander/C4.mp3',
+      volume: 0.6,
       pan: 0,
       notes: [],
-      attack: 0.01,
-      decay: 0.5, // Changed to 0.5
-      sustain: 1.0, // Changed to 1.0 so tall notes actually hold fully!
-      release: 0.3, // Shorter release feels snappier
+      attack: 0.05,
+      decay: 0.5,
+      sustain: 1.0,
+      release: 0.8,
       delayTime: 0,
       delayFeedback: 0,
     }
