@@ -1,34 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useDawStore } from '../store/useDawStore';
 
-const DEFAULT_PACKS = [
-  { name: 'Current project', type: 'folder', children: [] },
-  { name: 'Recent files', type: 'folder', children: [] },
-  { name: 'Plugin database', type: 'folder', children: [] },
-  { name: 'Plugin presets', type: 'folder', children: [] },
-  { name: 'Channel presets', type: 'folder', children: [] },
-  { name: 'Mixer presets', type: 'folder', children: [] },
-  { name: 'Scores', type: 'folder', children: [] },
-  { name: 'Backup', type: 'folder', children: [] },
-  { name: 'Clipboard files', type: 'folder', children: [] },
-  { name: 'Demo projects', type: 'folder', children: [] },
-  { name: 'Envelopes', type: 'folder', children: [] },
-  { name: 'Impulses', type: 'folder', children: [] },
-  { name: 'Misc', type: 'folder', children: [] },
-  { name: 'Packs', type: 'folder', children: [
-     { name: 'Drums', type: 'folder', children: [
-         { name: 'Kicks', type: 'folder', children: [{ name: 'Kick 808.wav', url: '' }, { name: 'Kick Basic.wav', url: '' }] },
-         { name: 'Snares', type: 'folder', children: [{ name: 'Snare Clap.wav', url: '' }] }
-     ]}
-  ]},
-  { name: 'Project bones', type: 'folder', children: [] },
-  { name: 'Recorded', type: 'folder', children: [] },
-  { name: 'Rendered', type: 'folder', children: [] },
-  { name: 'Sliced audio', type: 'folder', children: [] },
-  { name: 'Soundfonts', type: 'folder', children: [] },
-  { name: 'Speech', type: 'folder', children: [] },
-  { name: 'Templates', type: 'folder', children: [] },
-];
+const DEFAULT_PACKS: any[] = [];
 
 export default function Browser() {
   const [expanded, setExpanded] = useState<string[]>(['Uploaded Sounds', 'Packs']);

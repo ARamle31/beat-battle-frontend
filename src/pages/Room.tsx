@@ -477,7 +477,7 @@ export default function Room() {
               {/* Piano Roll content */}
               <div className="flex-1 overflow-hidden relative flex flex-col bg-[#353b3f]">
                  {!audioInited && role === 'judge' && (
-                   <div className="absolute inset-0 z-50 bg-[#21262a]/90 flex flex-col items-center justify-center">
+                   <div className="absolute inset-0 z-[400] pointer-events-auto bg-[#21262a]/90 flex flex-col items-center justify-center">
                      <button onClick={handleSyncAudio} className="fl-button px-6 py-2 shadow-lg flex items-center gap-2 font-bold text-white">
                        <Volume2 className="w-4 h-4" /> Enable Audio
                      </button>
