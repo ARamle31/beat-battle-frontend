@@ -33,6 +33,8 @@ export interface DawState {
   isPlaying: boolean;
   playheadPosition: number; // 0 to 32+ (continuous)
   
+  metronome: boolean;
+  setMetronome: (m: boolean) => void;
   loopActive: boolean;
   loopStart: number; // in 16ths
   loopEnd: number; // in 16ths
@@ -91,6 +93,9 @@ export const useDawStore = create<DawState>((set) => ({
   isPlaying: false,
   playheadPosition: 0,
   
+  metronome: false,
+  setMetronome: (metronome) => set({ metronome }),
+
   loopActive: true,
   loopStart: 0,
   loopEnd: 16, // Default 1 bar loop (16 16ths)

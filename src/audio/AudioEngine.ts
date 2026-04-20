@@ -29,11 +29,40 @@ class AudioEngine {
     // Apply initial loop points
     const { loopStart, loopEnd, loopActive } = useDawStore.getState();
     this.updateLoopPoints(loopStart, loopEnd, loopActive);
+
+    // Initialize Metronome
+    this.metronomeSynth = new Tone.MembraneSynth({
+      pitchDecay: 0.008,
+      octaves: 2,
+      oscillator: { type: 'sine' },
+      envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.01 }
+    }).toDestination();
+    this.metronomeSynth.volume.value = -12; // Lower volume
+
+    this.metronomeEventId = Tone.Transport.scheduleRepeat((time) => {
+       if (this.isMetronomeOn && this.metronomeSynth) {
+          // Play a slightly higher tick on the downbeat (tick 0 of the measure)
+          const currentTick = Math.round(Tone.Transport.ticks);
+          const ticksPerMeasure = Tone.Transport.PPQ * 4;
+          const isDownbeat = (currentTick % ticksPerMeasure) === 0;
+          this.metronomeSynth.triggerAttackRelease(isDownbeat ? "C5" : "C4", "32n", time);
+       }
+    }, "4n");
+  }
+
+  private metronomeSynth: Tone.MembraneSynth | null = null;
+  private metronomeEventId: number | null = null;
+  private isMetronomeOn = false;
+
+  public setMetronome(state: boolean) {
+     this.isMetronomeOn = state;
   }
 
   private updateLoopPoints(start: number, end: number, active: boolean) {
      if (active) {
-        Tone.Transport.setLoopPoints(start * Tone.Time("16n").toSeconds(), end * Tone.Time("16n").toSeconds());
+        // Use EXACT ticks for zero-latency gapless looping (1 step = PPQ / 4 ticks)
+        const ticksPerStep = Tone.Transport.PPQ / 4;
+        Tone.Transport.setLoopPoints(`${start * ticksPerStep}i`, `${end * ticksPerStep}i`);
         Tone.Transport.loop = true;
      } else {
         Tone.Transport.loop = false;
@@ -62,6 +91,10 @@ class AudioEngine {
 
     if (state.bpm !== prevState.bpm) {
       Tone.Transport.bpm.value = state.bpm;
+    }
+
+    if (state.metronome !== prevState.metronome) {
+      this.setMetronome(state.metronome);
     }
 
     if (state.loopStart !== prevState.loopStart || state.loopEnd !== prevState.loopEnd || state.loopActive !== prevState.loopActive) {

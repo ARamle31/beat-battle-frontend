@@ -12,7 +12,7 @@ export default function FlToolbar({
   audioInited: boolean, 
   setAudioInited: (v: boolean) => void 
 }) {
-  const { bpm, setBpm, isPlaying, setIsPlaying, isChannelRackOpen, setIsChannelRackOpen } = useDawStore();
+  const { bpm, setBpm, isPlaying, setIsPlaying, isChannelRackOpen, setIsChannelRackOpen, metronome, setMetronome } = useDawStore();
   const { room, role } = useLobbyStore();
   const isProducer = role === 'producer' || role === 'host';
   const isMatchActive = room?.status === 'active';
@@ -207,6 +207,19 @@ export default function FlToolbar({
                <button className="fl-button w-[38px] h-[16px] text-[8px] active text-[var(--fl-green)] font-bold">PAT</button>
                <button className="fl-button w-[38px] h-[16px] text-[8px] font-bold">SONG</button>
            </div>
+           
+           <div className="flex flex-col ml-1 items-center justify-center border-l border-[#111] border-r border-r-[#4f585d] px-1 h-[34px]">
+               <button 
+                  onClick={() => isProducer && setMetronome(!metronome)}
+                  className={`w-[24px] h-[24px] flex items-center justify-center rounded-[2px] transition-all border border-[#111] shadow-[0_1px_1px_rgba(255,255,255,0.05)]
+                  ${metronome ? 'bg-[#3b444b] text-[var(--fl-orange)] drop-shadow-[0_0_3px_var(--fl-orange)]' : 'bg-gradient-to-b from-[#2a3034] to-[#21262a] text-gray-500 hover:text-gray-400'}`}
+                  title="Metronome"
+                  style={{ pointerEvents: isProducer ? 'auto' : 'none' }}
+               >
+                  <svg width="12" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20"/><path d="m8 2 8 0"/><path d="m9 22 6 0"/><path d="m12 15 4-8"/></svg>
+               </button>
+           </div>
+
            <div className="flex items-center gap-[3px] ml-0.5" style={{ pointerEvents: isProducer ? 'auto' : 'none' }}>
                <button onClick={() => isProducer && togglePlayback()} className={`w-[34px] h-[34px] bg-gradient-to-b from-[#3a444a] to-[#2a3034] border border-[#111] border-b-[#4f585d] flex items-center justify-center rounded-[3px] shadow-[0_1px_2px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] hover:brightness-125 ${isPlaying ? 'bg-gradient-to-b from-[#1a1e22] to-[#111] shadow-[inset_1px_1px_3px_rgba(0,0,0,0.8)] border-b-[#111]' : ''}`}>
                  <div className={`w-0 h-0 border-t-[6px] border-b-[6px] border-l-[9px] border-transparent ${isPlaying ? 'border-l-[var(--fl-green)] drop-shadow-[0_0_4px_var(--fl-green)]' : 'border-l-[var(--fl-text-bright)]'}`} />
