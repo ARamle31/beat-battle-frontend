@@ -229,11 +229,11 @@ body {
   background: linear-gradient(to top, #8ea1ab 0%, #566470 100%);
 }
 
-@keyframes ps2-boot-fade {
-  0% { opacity: 0; filter: brightness(2) blur(10px); }
-  30% { opacity: 1; filter: brightness(1) blur(0px); }
-  80% { opacity: 1; filter: brightness(1) blur(0px); }
-  100% { opacity: 0; filter: brightness(0) blur(20px); }
+@keyframes studio-boot-fade {
+  0% { opacity: 0; transform: scale(1.05); filter: blur(5px); }
+  20% { opacity: 1; transform: scale(1); filter: blur(0px); }
+  80% { opacity: 1; transform: scale(0.98); filter: blur(0px); }
+  100% { opacity: 0; transform: scale(0.95); filter: blur(10px); }
 }
 
 @keyframes ps2-menu-reveal {
@@ -241,10 +241,10 @@ body {
   100% { opacity: 1; transform: scale(1); }
 }
 
-.animate-ps2-boot {
-  animation: ps2-boot-fade 4.5s ease-in-out forwards;
+.animate-studio-boot {
+  animation: studio-boot-fade 2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
 .animate-ps2-menu {
-  animation: ps2-menu-reveal 1.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  animation: ps2-menu-reveal 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }

@@ -28,22 +28,26 @@ export default function Home() {
     }
   };
 
+  const [isConnecting, setIsConnecting] = useState(false);
+
   const handleCreate = async () => {
     if (!username) return;
+    setIsConnecting(true);
     const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
     await import('../audio/AudioEngine').then(m => m.engine.init());
     setLobbyState({ roomId: newRoomId, username, role: 'host' });
     socket.emit('join_room', { roomId: newRoomId, role: 'host', username });
-    navigate(`/room/${newRoomId}`);
+    setTimeout(() => navigate(`/room/${newRoomId}`), 400);
   };
 
   const handleJoin = async (targetRoomId: string, targetRole?: Role) => {
     const finalRole = targetRole || role;
     if (!targetRoomId || !username || !finalRole) return;
+    setIsConnecting(true);
     await import('../audio/AudioEngine').then(m => m.engine.init());
     setLobbyState({ roomId: targetRoomId, username, role: finalRole });
     socket.emit('join_room', { roomId: targetRoomId, role: finalRole, username });
-    navigate(`/room/${targetRoomId}`);
+    setTimeout(() => navigate(`/room/${targetRoomId}`), 400);
   };
 
   const [showBoot, setShowBoot] = useState(!sessionStorage.getItem('ps2_boot_shown'));
@@ -51,25 +55,37 @@ export default function Home() {
   useEffect(() => {
     if (showBoot) {
       sessionStorage.setItem('ps2_boot_shown', '1');
-      const timer = setTimeout(() => setShowBoot(false), 4500);
+      const timer = setTimeout(() => setShowBoot(false), 2000);
       return () => clearTimeout(timer);
     }
   }, [showBoot]);
 
   if (showBoot) {
     return (
-      <div className="fixed inset-0 bg-black z-[9999] flex flex-col items-center justify-center font-sans">
-         <div className="animate-ps2-boot flex flex-col items-center">
-            <h1 className="text-white text-5xl font-black tracking-widest ps2-text-glow mb-4">BEAT BATTLE</h1>
-            <h2 className="text-[#64B7EE] text-2xl font-black tracking-[0.5em] ps2-text-glow opacity-80">AUDIO COMPUTER ENTERTAINMENT</h2>
+      <div className="fixed inset-0 bg-[#0c0d10] z-[9999] flex flex-col items-center justify-center font-sans">
+         <div className="animate-studio-boot flex flex-col items-center gap-6">
+            <div className="w-16 h-16 rounded-full border-4 border-white border-t-transparent animate-spin opacity-20" />
+            <h1 className="text-white text-3xl font-black tracking-[0.5em] uppercase">BEAT BATTLE</h1>
+            <h2 className="text-white/40 text-xs font-bold tracking-[0.3em] uppercase">Audio Session Initialization</h2>
          </div>
       </div>
     );
   }
 
+  const ConnectingOverlay = () => isConnecting ? (
+    <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex flex-col items-center justify-center animation-fade-in">
+       <div className="flex items-center gap-4 text-white">
+          <div className="w-6 h-6 border-2 border-[#64B7EE] border-t-transparent rounded-full animate-spin" />
+          <span className="font-bold tracking-widest text-[#64B7EE] uppercase">Syncing to Host...</span>
+       </div>
+    </div>
+  ) : null;
+
   if (!aliasSaved) {
     return (
-      <div className="min-h-screen ps2-bg text-white flex flex-col items-center justify-center p-6 relative font-sans animate-ps2-menu">
+      <>
+        <ConnectingOverlay />
+        <div className="min-h-screen ps2-bg text-white flex flex-col items-center justify-center p-6 relative font-sans animate-ps2-menu">
         <div className="relative z-10 w-full max-w-sm flex flex-col items-center ps2-crystalline p-10 rounded shadow-2xl">
             <div className="w-16 h-16 border-2 border-[#64B7EE] rounded flex items-center justify-center mb-6 ps2-text-glow bg-black/30">
                <Fingerprint className="w-8 h-8 text-[#64B7EE]" />
@@ -99,11 +115,14 @@ export default function Home() {
             </form>
         </div>
       </div>
+      </>
     );
   }
 
   return (
-    <div className="min-h-screen ps2-bg text-white flex flex-col items-center justify-center p-6 lg:p-12 font-sans animate-ps2-menu selection:bg-[#4A5661]/50">
+    <>
+      <ConnectingOverlay />
+      <div className="min-h-screen ps2-bg text-white flex flex-col items-center justify-center p-6 lg:p-12 font-sans animate-ps2-menu selection:bg-[#4A5661]/50">
       
       {/* Decorative Floating Grid Blocks */}
       <div className="absolute top-10 left-10 w-32 h-32 border border-[#64B7EE]/20 bg-[#64B7EE]/5 transform rotate-45 blur-sm" />
@@ -247,5 +266,6 @@ export default function Home() {
 
       </div>
     </div>
+    </>
   );
 }

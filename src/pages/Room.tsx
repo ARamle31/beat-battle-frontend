@@ -318,7 +318,7 @@ export default function Room() {
   const isMatchActive = room.status === 'active';
 
   return (
-    <div className="h-screen w-screen flex flex-col font-sans select-none text-[11px]" style={{ backgroundColor: 'var(--fl-bg-dark)' }}>
+    <div className="h-screen w-screen flex flex-col font-sans select-none text-[11px] animation-fade-in" style={{ backgroundColor: 'var(--fl-bg-dark)' }}>
       {/* FL Studio Top Toolbar */}
       <FlToolbar audioInited={audioInited} setAudioInited={setAudioInited} />
 
