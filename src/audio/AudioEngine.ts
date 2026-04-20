@@ -14,6 +14,7 @@ class AudioEngine {
 
   async init() {
     if (this.initialized) return;
+    Tone.setContext(new Tone.Context({ latencyHint: 'interactive', lookAhead: 0.05 }));
     await Tone.start();
     Tone.Transport.bpm.value = useDawStore.getState().bpm;
     
@@ -58,9 +59,7 @@ class AudioEngine {
 
   private updateLoopPoints(start: number, end: number, active: boolean) {
      if (active) {
-        // Use EXACT ticks for zero-latency gapless looping (1 step = PPQ / 4 ticks)
-        const ticksPerStep = Tone.Transport.PPQ / 4;
-        Tone.Transport.setLoopPoints(`${start * ticksPerStep}i`, `${end * ticksPerStep}i`);
+        Tone.Transport.setLoopPoints({ '16n': start }, { '16n': end });
         Tone.Transport.loop = true;
      } else {
         Tone.Transport.loop = false;
