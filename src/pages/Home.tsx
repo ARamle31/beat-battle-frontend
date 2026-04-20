@@ -46,39 +46,55 @@ export default function Home() {
     navigate(`/room/${targetRoomId}`);
   };
 
+  const [showBoot, setShowBoot] = useState(!sessionStorage.getItem('ps2_boot_shown'));
+
+  useEffect(() => {
+    if (showBoot) {
+      sessionStorage.setItem('ps2_boot_shown', '1');
+      const timer = setTimeout(() => setShowBoot(false), 4500);
+      return () => clearTimeout(timer);
+    }
+  }, [showBoot]);
+
+  if (showBoot) {
+    return (
+      <div className="fixed inset-0 bg-black z-[9999] flex flex-col items-center justify-center font-sans">
+         <div className="animate-ps2-boot flex flex-col items-center">
+            <h1 className="text-white text-5xl font-black tracking-widest ps2-text-glow mb-4">BEAT BATTLE</h1>
+            <h2 className="text-[#64B7EE] text-2xl font-black tracking-[0.5em] ps2-text-glow opacity-80">AUDIO COMPUTER ENTERTAINMENT</h2>
+         </div>
+      </div>
+    );
+  }
+
   if (!aliasSaved) {
     return (
-      <div className="min-h-screen bg-[#09090b] text-white flex flex-col items-center justify-center p-6 relative overflow-hidden font-sans">
-        <div className="absolute inset-0 pointer-events-none opacity-[0.02]" 
-             style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-        
-        <div className="relative z-10 w-full max-w-sm flex flex-col items-center">
-            <Activity className="w-12 h-12 text-[#FF7D2E] mb-6" />
-            <h1 className="text-2xl font-black italic tracking-tighter mb-1 text-white">BEAT BATTLE</h1>
-            <p className="text-[#8f969b] text-[10px] font-bold tracking-[0.2em] uppercase mb-12 text-center">Global Studio Session</p>
+      <div className="min-h-screen ps2-bg text-white flex flex-col items-center justify-center p-6 relative font-sans animate-ps2-menu">
+        <div className="relative z-10 w-full max-w-sm flex flex-col items-center ps2-crystalline p-10 rounded shadow-2xl">
+            <div className="w-16 h-16 border-2 border-[#64B7EE] rounded flex items-center justify-center mb-6 ps2-text-glow bg-black/30">
+               <Fingerprint className="w-8 h-8 text-[#64B7EE]" />
+            </div>
+            <h1 className="text-3xl font-black italic tracking-widest mb-1 text-white ps2-text-glow">MEMORY CARD</h1>
+            <p className="text-[#8ea1ab] text-[10px] font-bold tracking-[0.2em] uppercase mb-12 text-center">Format New Audio Producer</p>
             
-            <form onSubmit={handleSaveAlias} className="w-full flex flex-col gap-4">
+            <form onSubmit={handleSaveAlias} className="w-full flex flex-col gap-6">
                 <div className="flex flex-col gap-2">
-                   <label className="text-[10px] font-bold text-[#8f969b] uppercase tracking-widest px-1">Producer Alias</label>
-                   <div className="relative">
-                     <Fingerprint className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8f969b]" />
-                     <input 
-                        type="text" 
-                        value={username}
-                        onChange={e => setUsernameInput(e.target.value)}
-                        placeholder="ENTER ALIAS"
-                        className="w-full bg-[#13161a] border border-[#23272d] rounded-sm px-12 py-3 text-white text-sm font-bold tracking-wider placeholder:text-[#41474d] focus:outline-none focus:border-[#FF7D2E] transition-colors"
-                        autoFocus
-                        maxLength={16}
-                     />
-                   </div>
+                   <label className="text-xs font-bold text-[#8ea1ab] uppercase tracking-widest">Input Alias</label>
+                   <input 
+                      type="text" 
+                      value={username}
+                      onChange={e => setUsernameInput(e.target.value)}
+                      className="w-full bg-black/50 border border-[#8ea1ab] rounded-sm px-4 py-4 text-white text-xl font-black tracking-widest focus:outline-none focus:border-[#64B7EE] transition-colors text-center shadow-inner uppercase"
+                      autoFocus
+                      maxLength={16}
+                   />
                 </div>
                 <button 
                   disabled={username.trim().length < 2}
                   type="submit"
-                  className="w-full py-4 rounded-sm bg-white text-black text-xs font-black uppercase tracking-widest hover:bg-[#FF7D2E] hover:text-white transition-all disabled:opacity-20 disabled:hover:bg-white disabled:hover:text-black mt-4 shadow-sm"
+                  className="ps2-button w-full py-4 text-sm font-black uppercase tracking-[0.2em] mt-4"
                 >
-                  Connect
+                  Save Data
                 </button>
             </form>
         </div>
@@ -87,80 +103,86 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-[#09090B] text-white flex flex-col items-center justify-center p-6 lg:p-12 font-sans selection:bg-[#4A5661]/50">
-      <div className="fixed inset-0 pointer-events-none opacity-[0.02]" 
-           style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '16px 16px' }} />
+    <div className="min-h-screen ps2-bg text-white flex flex-col items-center justify-center p-6 lg:p-12 font-sans animate-ps2-menu selection:bg-[#4A5661]/50">
+      
+      {/* Decorative Floating Grid Blocks */}
+      <div className="absolute top-10 left-10 w-32 h-32 border border-[#64B7EE]/20 bg-[#64B7EE]/5 transform rotate-45 blur-sm" />
+      <div className="absolute bottom-10 right-10 w-64 h-64 border border-[#64B7EE]/20 bg-[#64B7EE]/5 transform -rotate-12 blur-md" />
 
-      <div className="w-full max-w-6xl flex flex-col md:flex-row gap-6 relative z-10 items-stretch">
+      <div className="w-full max-w-6xl flex flex-col md:flex-row gap-8 relative z-10 items-stretch">
         
         {/* Left Column: Actions */}
         <div className="w-full md:w-[340px] flex flex-col gap-6 shrink-0">
             
             {/* Identity Card */}
-            <div className="bg-[#131518] border border-[#212429] rounded-none p-5 relative overflow-hidden">
-               <div className="absolute top-0 left-0 w-1 h-full bg-[#FF7D2E]" />
-               <p className="text-[9px] font-bold text-[#8f969b] tracking-widest uppercase mb-1">Authenticated As</p>
-               <div className="flex items-end justify-between gap-4 mt-2">
-                  <h2 className="text-xl font-black tracking-widest text-[#e8e9ea] truncate flex-1">{username}</h2>
-                  <button onClick={() => setAliasSaved(false)} className="text-[10px] font-bold text-[#FF7D2E] uppercase hover:underline shrink-0">Edit</button>
+            <div className="ps2-crystalline p-6 relative flex gap-4 items-center">
+               <div className="w-12 h-16 bg-black/40 border border-[#CBDCE6] shadow-inner flex flex-col items-center py-2 shrink-0">
+                  <div className="w-8 h-2 bg-[#CBDCE6]" />
+                  <div className="flex-1" />
+                  <div className="w-4 h-1 bg-[#8ea1ab] rounded-full mb-1" />
+               </div>
+               <div className="flex flex-col flex-1 truncate">
+                  <p className="text-[10px] font-bold text-[#8ea1ab] tracking-widest uppercase">System User</p>
+                  <h2 className="text-xl font-black tracking-widest text-white truncate ps2-text-glow">{username}</h2>
+                  <button onClick={() => setAliasSaved(false)} className="text-[10px] font-bold text-[#64B7EE] uppercase hover:underline mt-1 text-left w-max">Unplug Card</button>
                </div>
             </div>
 
             {/* Host Section */}
-            <div className="bg-[#131518] border border-[#212429] rounded-none p-6 flex flex-col">
-               <div className="flex items-center gap-3 mb-6 border-b border-[#212429] pb-4">
-                  <Settings2 size={16} className="text-[#8f969b]" />
-                  <h3 className="text-xs font-bold tracking-widest uppercase text-[#e8e9ea]">Session Config</h3>
+            <div className="ps2-crystalline p-6 flex flex-col">
+               <div className="flex items-center gap-3 mb-6 border-b border-[#8ea1ab]/30 pb-4">
+                  <Settings2 size={18} className="text-[#64B7EE]" />
+                  <h3 className="text-sm font-bold tracking-widest uppercase text-white ps2-text-glow">Create Battle</h3>
                </div>
                
-               <div className="flex flex-col gap-2 mb-8 mt-2">
-                  <label className="text-[10px] font-bold text-[#8f969b] uppercase tracking-widest">Match Duration (Minutes)</label>
-                  <input 
-                     type="number"
-                     min={1}
-                     max={60}
-                     value={matchDuration}
-                     onChange={(e) => setLobbyState({ matchDuration: parseInt(e.target.value) || 10 })}
-                     className="bg-[#0c0d0e] border border-[#212429] rounded-sm px-4 py-3 text-[#e8e9ea] font-mono text-lg focus:outline-none focus:border-[#FF7D2E] transition-colors"
-                  />
+               <div className="flex justify-between items-center mb-8 bg-black/30 p-4 border border-[#8ea1ab]/20">
+                  <span className="text-xs font-bold text-[#8ea1ab] uppercase tracking-widest">Time Limit</span>
+                  <div className="flex items-center gap-3">
+                      <input 
+                         type="number"
+                         min={1}
+                         max={60}
+                         value={matchDuration}
+                         onChange={(e) => setLobbyState({ matchDuration: parseInt(e.target.value) || 10 })}
+                         className="bg-black border border-[#8ea1ab] w-12 py-1 text-center text-white font-mono text-lg focus:outline-none focus:border-[#64B7EE]"
+                      />
+                      <span className="text-[10px] font-bold text-[#8ea1ab] uppercase">Min</span>
+                  </div>
                </div>
 
-               <button 
-                onClick={handleCreate}
-                className="w-full py-4 bg-[#FF7D2E] text-black font-black text-xs uppercase tracking-[0.2em] hover:bg-white transition-colors"
-               >
-                 Host Match
+               <button onClick={handleCreate} className="ps2-button w-full py-4 text-xs font-black uppercase tracking-[0.2em]">
+                 Initialize Match
                </button>
             </div>
 
             {/* Direct Connect */}
-            <div className="bg-[#131518] border border-[#212429] rounded-none p-6 flex flex-col">
-               <div className="flex items-center gap-3 mb-6 border-b border-[#212429] pb-4">
-                  <Radio size={16} className="text-[#8f969b]" />
-                  <h3 className="text-xs font-bold tracking-widest uppercase text-[#e8e9ea]">Direct Link</h3>
+            <div className="ps2-crystalline p-6 flex flex-col">
+               <div className="flex items-center gap-3 mb-6 border-b border-[#8ea1ab]/30 pb-4">
+                  <Radio size={18} className="text-[#64B7EE]" />
+                  <h3 className="text-sm font-bold tracking-widest uppercase text-white ps2-text-glow">System Link</h3>
                </div>
                
-               <div className="flex flex-col gap-2 mb-6 mt-2">
-                  <label className="text-[10px] font-bold text-[#8f969b] uppercase tracking-widest">Room Code</label>
+               <div className="flex flex-col gap-2 mb-6">
+                  <label className="text-[10px] font-bold text-[#8ea1ab] uppercase tracking-widest">Target IP / Code</label>
                   <input 
                      type="text" 
                      value={roomId}
                      onChange={(e) => setRoomIdInput(e.target.value.toUpperCase())}
-                     className="w-full bg-[#0c0d0e] border border-[#212429] rounded-sm px-4 py-3 text-center text-[#64B7EE] font-mono font-black tracking-[0.3em] focus:outline-none focus:border-[#64B7EE] transition-colors uppercase"
-                     placeholder="XXXXXX"
+                     className="w-full bg-black/60 border border-[#8ea1ab] px-4 py-3 text-center text-white font-mono text-xl tracking-[0.3em] focus:outline-none focus:border-[#64B7EE] transition-colors uppercase shadow-inner"
+                     placeholder="------"
                      maxLength={8}
                   />
                </div>
                
                <div className="grid grid-cols-2 gap-2 mb-6">
-                  <button onClick={() => setRoleInput('producer')} className={`py-3 border text-[10px] font-bold tracking-widest uppercase transition-colors ${role === 'producer' ? 'bg-[#212429] border-[#e8e9ea] text-white' : 'bg-[#0c0d0e] border-[#212429] text-[#8f969b] hover:bg-[#131518]'}`}>Producer</button>
-                  <button onClick={() => setRoleInput('judge')} className={`py-3 border text-[10px] font-bold tracking-widest uppercase transition-colors ${role === 'judge' ? 'bg-[#212429] border-[#e8e9ea] text-white' : 'bg-[#0c0d0e] border-[#212429] text-[#8f969b] hover:bg-[#131518]'}`}>Spectator</button>
+                  <button onClick={() => setRoleInput('producer')} className={`ps2-button py-3 text-[10px] font-black tracking-widest uppercase ${role === 'producer' ? 'bg-[#cbdce6] border-[#2f3539]' : 'opacity-70'}`}>Producer</button>
+                  <button onClick={() => setRoleInput('judge')} className={`ps2-button py-3 text-[10px] font-black tracking-widest uppercase ${role === 'judge' ? 'bg-[#cbdce6] border-[#2f3539]' : 'opacity-70'}`}>Spectator</button>
                </div>
 
                <button 
                 onClick={() => handleJoin(roomId)}
                 disabled={!roomId || roomId.length < 3}
-                className="w-full py-4 bg-[#e8e9ea] text-black font-black text-xs disabled:opacity-20 uppercase tracking-[0.2em] hover:bg-white transition-colors"
+                className="ps2-button w-full py-4 text-xs font-black uppercase tracking-[0.2em] disabled:opacity-50"
                >
                  Connect
                </button>
@@ -169,51 +191,51 @@ export default function Home() {
         </div>
 
         {/* Right Column: Public Radar */}
-        <div className="bg-[#131518] border border-[#212429] rounded-none flex flex-col flex-1 relative overflow-hidden min-h-[500px]">
-           <div className="p-6 border-b border-[#212429] flex justify-between items-center bg-[#0c0d0e]/50">
+        <div className="ps2-crystalline flex flex-col flex-1 relative min-h-[500px]">
+           <div className="p-6 border-b border-[#8ea1ab]/30 flex justify-between items-center bg-black/20">
               <div className="flex items-center gap-3">
                  <Activity className="w-5 h-5 text-[#64B7EE] animate-pulse" />
-                 <span className="font-bold text-[#e8e9ea] tracking-[0.2em] uppercase text-sm">Public Encounters</span>
+                 <span className="font-black text-white px-2 tracking-[0.2em] uppercase text-lg ps2-text-glow">Browser</span>
               </div>
-              <div className="flex items-center gap-2">
-                 <span className="w-2 h-2 rounded-full bg-[#64B7EE] animate-pulse" />
-                 <span className="text-[10px] font-bold text-[#8f969b] tracking-widest uppercase">{publicRooms.length} Active</span>
+              <div className="flex items-center gap-2 px-3 py-1 bg-black/40 border border-[#8ea1ab]/50">
+                 <span className="w-2 h-2 rounded-full bg-[#64B7EE] animate-pulse shadow-[0_0_8px_#64B7EE]" />
+                 <span className="text-[10px] font-bold text-[#cbdce6] tracking-widest uppercase">{publicRooms.length} Online</span>
               </div>
            </div>
 
-           <div className="flex-1 overflow-auto p-6 space-y-3 custom-scrollbar bg-[#0c0d0e]/30">
+           <div className="flex-1 overflow-auto p-6 space-y-4 custom-scrollbar">
                {publicRooms.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center opacity-40 text-[#8f969b]">
-                      <RefreshCw className="w-8 h-8 mb-6 animate-spin-slow text-[#64B7EE]" />
-                      <span className="text-xs font-bold tracking-[0.3em] uppercase">No Signals Detected</span>
+                  <div className="h-full flex flex-col items-center justify-center opacity-60 text-white">
+                      <RefreshCw className="w-12 h-12 mb-6 animate-spin text-[#64B7EE]" />
+                      <span className="text-sm font-bold tracking-[0.3em] uppercase ps2-text-glow">Scanning Network...</span>
                   </div>
                ) : (
                   publicRooms.map(room => (
-                     <div key={room.id} className="group bg-[#0c0d0e] hover:bg-[#191b1f] border border-[#212429] p-5 flex flex-col sm:flex-row sm:items-center justify-between transition-colors gap-6 sm:gap-4 relative">
+                     <div key={room.id} className="bg-black/40 hover:bg-black/60 border border-[#8ea1ab] p-4 flex flex-col sm:flex-row sm:items-center justify-between transition-colors gap-6 sm:gap-4 group">
                          
                          <div className="flex items-center gap-6">
                             <div className="flex flex-col gap-1 w-24">
-                               <span className="text-[9px] font-bold text-[#8f969b] tracking-widest uppercase">ID</span>
-                               <span className="text-lg font-black text-[#e8e9ea] font-mono tracking-widest">{room.id}</span>
+                               <span className="text-[9px] font-bold text-[#8ea1ab] tracking-widest uppercase">Room ID</span>
+                               <span className="text-xl font-black text-white font-mono tracking-widest ps2-text-glow group-hover:text-[#64B7EE] transition-colors">{room.id}</span>
                             </div>
                             
-                            <div className="w-[1px] h-8 bg-[#212429] hidden sm:block" />
+                            <div className="w-[2px] h-10 bg-[#8ea1ab]/30 hidden sm:block" />
                             
                             <div className="flex flex-col gap-1.5 flex-1 min-w-[150px]">
-                               <span className={`w-max text-[9px] px-2 py-0.5 rounded-sm uppercase font-black tracking-widest ${room.status === 'active' ? 'bg-[#FF7D2E]/10 text-[#FF7D2E]' : 'bg-[#7ae15a]/10 text-[#7ae15a]'}`}>
+                               <span className={`w-max text-[10px] px-2 py-0.5 border uppercase font-black tracking-widest ${room.status === 'active' ? 'border-[#FF7D2E] text-[#FF7D2E] bg-[#FF7D2E]/10' : 'border-[#64B7EE] text-[#64B7EE] bg-[#64B7EE]/10'}`}>
                                  {room.status}
                                </span>
-                               <span className="text-[10px] font-bold text-[#8f969b] tracking-widest uppercase flex items-center gap-2">
-                                 <Users className="w-3 h-3" /> {room.usersCount} Players
+                               <span className="text-[10px] font-bold text-[#e8e9ea] tracking-widest uppercase flex items-center gap-2">
+                                 <Users className="w-3 h-3 text-[#64B7EE]" /> {room.usersCount} Players
                                </span>
                             </div>
                          </div>
 
-                         <div className="flex gap-3 shrink-0 sm:border-l sm:border-[#212429] sm:pl-6">
-                            <button onClick={() => handleJoin(room.id, 'producer')} className="py-2.5 px-6 border border-[#212429] bg-[#e8e9ea] text-[10px] font-black text-black hover:bg-white uppercase tracking-widest transition-colors flex items-center gap-2">
-                               <Play size={10}/> Join
+                         <div className="flex gap-3 shrink-0">
+                            <button onClick={() => handleJoin(room.id, 'producer')} className="ps2-button py-2.5 px-6 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
+                               <Play size={12}/> Join
                             </button>
-                            <button onClick={() => handleJoin(room.id, 'judge')} className="py-2.5 px-5 border border-[#212429] bg-transparent text-[10px] font-black text-[#8f969b] hover:text-white hover:border-[#8f969b] uppercase tracking-widest transition-colors">
+                            <button onClick={() => handleJoin(room.id, 'judge')} className="border-2 border-[#8ea1ab] bg-transparent text-white py-2.5 px-4 text-[10px] font-black uppercase tracking-widest hover:bg-[#8ea1ab] hover:text-black transition-colors">
                                Spectate
                             </button>
                          </div>

@@ -178,3 +178,73 @@ body {
 .animation-fade-in {
     animation: fadein 0.3s ease-out forwards;
 }
+
+/* PS2 NOSTALGIC LOBBY THEME */
+.ps2-bg {
+  background: radial-gradient(circle at center, #1b2f56 0%, #060913 70%, #000000 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.ps2-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: 
+    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+    linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  background-size: 100% 4px, 3px 100%;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.ps2-crystalline {
+  background: linear-gradient(135deg, rgba(73, 133, 207, 0.2) 0%, rgba(15, 33, 66, 0.6) 100%);
+  border: 1px solid rgba(138, 155, 179, 0.3);
+  box-shadow: 
+    inset 0 0 20px rgba(73, 133, 207, 0.1),
+    0 5px 15px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+}
+
+.ps2-text-glow {
+  text-shadow: 0 0 10px rgba(73, 133, 207, 0.8), 0 0 20px rgba(73, 133, 207, 0.4);
+}
+
+.ps2-button {
+  background: linear-gradient(to bottom, #8ea1ab 0%, #566470 100%);
+  border-top: 2px solid #cbdce6;
+  border-left: 2px solid #cbdce6;
+  border-bottom: 2px solid #2f3539;
+  border-right: 2px solid #2f3539;
+  color: #141618;
+  transition: all 0.1s ease;
+}
+
+.ps2-button:active:not(:disabled) {
+  border-top: 2px solid #2f3539;
+  border-left: 2px solid #2f3539;
+  border-bottom: 2px solid #cbdce6;
+  border-right: 2px solid #cbdce6;
+  background: linear-gradient(to top, #8ea1ab 0%, #566470 100%);
+}
+
+@keyframes ps2-boot-fade {
+  0% { opacity: 0; filter: brightness(2) blur(10px); }
+  30% { opacity: 1; filter: brightness(1) blur(0px); }
+  80% { opacity: 1; filter: brightness(1) blur(0px); }
+  100% { opacity: 0; filter: brightness(0) blur(20px); }
+}
+
+@keyframes ps2-menu-reveal {
+  0% { opacity: 0; transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.animate-ps2-boot {
+  animation: ps2-boot-fade 4.5s ease-in-out forwards;
+}
+
+.animate-ps2-menu {
+  animation: ps2-menu-reveal 1.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
