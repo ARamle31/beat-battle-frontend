@@ -180,9 +180,6 @@ class AudioEngine {
           });
 
           const part = new Tone.Part((time, value) => {
-              if (instrument instanceof Tone.PolySynth) {
-                 instrument.triggerRelease(value.notes, time - 0.001); 
-              }
               instrument.triggerAttackRelease(value.notes, value.duration, time, value.velocity);
           }, partEvents).start(0);
 

@@ -554,10 +554,10 @@ export default function PianoRoll() {
                   <div key={note} 
                       onMouseDown={() => engine.playPreview(selectedTrack.id, note.replace(/[5-8]/, '4'))} 
                       className={`w-full flex items-center justify-end pr-1 text-[9px] tracking-tight cursor-pointer border-b border-[var(--fl-border)] box-border
-                      ${isBlack ? 'bg-[#22272A] hover:bg-[#2A3035] text-[#555] font-normal' : 'bg-[#DDE2E5] border-t border-t-white shadow-[inset_1px_1px_1px_rgba(0,0,0,0.1)] hover:bg-[#fff] font-bold ' + (isC ? 'text-[#3E4A53]' : 'text-[#8EA1AB]')}
+                      ${isBlack ? 'bg-[#22272A] hover:bg-[#2A3035]' : 'bg-[#DDE2E5] border-t border-t-white shadow-[inset_1px_1px_1px_rgba(0,0,0,0.1)] hover:bg-[#fff]'}
                       `}
                       style={{ height: CELL_HEIGHT }}>
-                      <span className="scale-90 pr-0.5">{note}</span>
+                      {isC && <span className="scale-90 pr-0.5 text-[#3E4A53] font-bold">{note}</span>}
                   </div>
                 )
               })}

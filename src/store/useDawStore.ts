@@ -78,7 +78,7 @@ export const useDawStore = create<DawState>((set) => ({
       name: 'Default Synth',
       type: 'synth',
       oscillatorType: 'sawtooth',
-      volume: 0.8,
+      volume: 0.4,
       pan: 0,
       notes: [],
       attack: 0.01,
