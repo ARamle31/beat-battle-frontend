@@ -30,14 +30,12 @@ class AudioEngine {
     const { loopStart, loopEnd, loopActive } = useDawStore.getState();
     this.updateLoopPoints(loopStart, loopEnd, loopActive);
 
-    // Initialize Metronome
-    this.metronomeSynth = new Tone.MembraneSynth({
-      pitchDecay: 0.008,
-      octaves: 2,
+    // Initialize Logic-style Metronome Beep
+    this.metronomeSynth = new Tone.Synth({
       oscillator: { type: 'sine' },
-      envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.01 }
+      envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.01 }
     }).toDestination();
-    this.metronomeSynth.volume.value = -12; // Lower volume
+    this.metronomeSynth.volume.value = -8; 
 
     this.metronomeEventId = Tone.Transport.scheduleRepeat((time) => {
        if (this.isMetronomeOn && this.metronomeSynth) {
@@ -45,12 +43,12 @@ class AudioEngine {
           const currentTick = Math.round(Tone.Transport.ticks);
           const ticksPerMeasure = Tone.Transport.PPQ * 4;
           const isDownbeat = (currentTick % ticksPerMeasure) === 0;
-          this.metronomeSynth.triggerAttackRelease(isDownbeat ? "C5" : "C4", "32n", time);
+          this.metronomeSynth.triggerAttackRelease(isDownbeat ? "E6" : "E5", "32n", time);
        }
     }, "4n");
   }
 
-  private metronomeSynth: Tone.MembraneSynth | null = null;
+  private metronomeSynth: Tone.Synth | null = null;
   private metronomeEventId: number | null = null;
   private isMetronomeOn = false;
 

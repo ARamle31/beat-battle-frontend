@@ -82,9 +82,9 @@ export const useDawStore = create<DawState>((set) => ({
       pan: 0,
       notes: [],
       attack: 0.01,
-      decay: 0.2,
-      sustain: 0.2,
-      release: 0.8,
+      decay: 0.5, // Changed to 0.5
+      sustain: 1.0, // Changed to 1.0 so tall notes actually hold fully!
+      release: 0.3, // Shorter release feels snappier
       delayTime: 0,
       delayFeedback: 0,
     }

@@ -327,10 +327,13 @@ export default function PianoRoll() {
        setDragAction('paint');
     } else { 
        addNote(selectedTrack.id, newNote);
-       setDragAction('resize');
+       setDragAction('move');
        setDragTargetId(newNote.id);
-       setStartMouseX(e.clientX);
-       setStartDataValueX(lastNoteDuration); 
+       setSelectedNoteIds([newNote.id]);
+       setStartMouseX(step);
+       setStartMouseY(pitchIndex);
+       setStartDataValueX(step);
+       setStartDataValueY(NOTES.indexOf(pitch));
     }
   };
 
@@ -437,6 +440,12 @@ export default function PianoRoll() {
 
     if (dragAction === 'move') {
       const pitchIndexOffset = currentPitchIndex - startMouseY;
+      
+      if (pitchIndexOffset !== localDragDelta.pitchIndex) {
+          const newPitchIndex = Math.max(0, Math.min(NOTES.length - 1, startDataValueY + pitchIndexOffset));
+          engine.playPreview(selectedTrack.id, NOTES[newPitchIndex]);
+      }
+      
       setLocalDragDelta({ steps: stepsMoved, pitchIndex: pitchIndexOffset, dur: 0 });
     } else if (dragAction === 'resize') {
       setLocalDragDelta({ steps: 0, pitchIndex: 0, dur: stepsMoved });

@@ -105,6 +105,7 @@ export default function ChannelRack() {
   };
 
   const windowRef = useRef<HTMLDivElement>(null);
+  const restoreRef = useRef<HTMLDivElement>(null);
   const posRef = useRef({ x: 15, y: 20 });
 
   const handleHeaderDrag = (e: React.MouseEvent) => {
@@ -121,6 +122,10 @@ export default function ChannelRack() {
         if (windowRef.current) {
            windowRef.current.style.left = `${posRef.current.x}px`;
            windowRef.current.style.top = `${posRef.current.y}px`;
+        }
+        if (restoreRef.current) {
+           restoreRef.current.style.left = `${posRef.current.x}px`;
+           restoreRef.current.style.top = `${posRef.current.y}px`;
         }
      };
 
@@ -178,16 +183,18 @@ export default function ChannelRack() {
   if (!shouldRender && !isChannelRackOpen) {
       return (
          <div 
+           ref={restoreRef}
            className="absolute z-10 bg-[#282e32] border border-[#4f5960] py-1 px-3 rounded shadow-[0_0_15px_rgba(0,0,0,0.8)] cursor-pointer hover:bg-[#3b4349] transition-all flex items-center gap-3 animate-pulse"
            style={{ left: posRef.current.x, top: posRef.current.y }}
-           onClick={() => setIsChannelRackOpen(true)}
+           onMouseDown={handleHeaderDrag}
+           onDoubleClick={() => setIsChannelRackOpen(true)}
          >
             <div className="w-4 h-4 bg-[var(--fl-green)] rounded-[1px] shadow-[inset_1px_1px_2px_rgba(255,255,255,0.5)] flex flex-col justify-evenly p-[2px]">
                <div className="w-full h-[2px] bg-black/60 rounded" />
                <div className="w-full h-[2px] bg-black/60 rounded" />
                <div className="w-full h-[2px] bg-black/60 rounded" />
             </div>
-            <span className="text-[11px] font-black text-white uppercase tracking-widest">Restore Channel Rack</span>
+            <span className="text-[11px] font-black text-white uppercase tracking-widest pl-1 pointer-events-none">Double-Click to Restore</span>
          </div>
       );
   }
