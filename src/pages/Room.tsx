@@ -215,6 +215,19 @@ export default function Room() {
     };
   }, [role, username, navigate, judgeWatching]);
 
+  // Auto-spectate first producer if judge
+  useEffect(() => {
+     if (role === 'judge' && room?.users) {
+        const producers = room.users.filter(u => u.role === 'producer' || u.role === 'host');
+        if (producers.length > 0 && !judgeWatching) {
+            setJudgeWatching(producers[0].username);
+            if ((window as any).judgeMap?.[producers[0].username]) {
+                useDawStore.setState((window as any).judgeMap[producers[0].username]);
+            }
+        }
+     }
+  }, [role, room?.users, judgeWatching, setJudgeWatching]);
+
   // Bind outgoing daw_state_update
   useEffect(() => {
     if (!isProducer || !id) return;
@@ -345,23 +358,60 @@ export default function Room() {
             })}
 
            {/* Overlays */}
+           {/* Overlays */}
            {role === 'judge' && room.users.some(u => u.role !== 'judge') && (
-               <div className="absolute top-2 right-2 text-white z-[110] flex gap-2">
-                 {room.users.filter(u => u.role === 'producer' || u.role === 'host').map(u => (
-                   <button 
-                      key={u.username} 
-                      className={`fl-button px-4 py-2 font-bold textShadow drop-shadow-md ${judgeWatching === u.username ? 'text-[#71df66] bg-[#3a444a]' : 'text-gray-300'}`}
-                      onClick={() => {
-                          setJudgeWatching(u.username);
-                          if ((window as any).judgeMap?.[u.username]) {
-                              useDawStore.setState((window as any).judgeMap[u.username]);
-                          }
-                      }}
-                   >
-                     {u.username}'s DAW
-                   </button>
-                 ))}
-               </div>
+               <>
+                   {/* Giant Spectating Indicator */}
+                   <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-[110] flex flex-col items-center pointer-events-none">
+                      <div className="text-[#ff7d2e] font-black text-6xl tracking-widest drop-shadow-[0_0_15px_#ff7d2e] textShadow animate-pulse">
+                          SPECTATING: {judgeWatching}
+                      </div>
+                      <div className="text-white/50 font-bold tracking-widest mt-2 uppercase text-xl">
+                          You are in read-only mode
+                      </div>
+                   </div>
+
+                   {/* Giant Navigation Arrows */}
+                   <div className="absolute inset-y-0 left-8 px-4 flex items-center z-[110]">
+                       <button 
+                           className="bg-black/50 hover:bg-[#ff7d2e]/90 text-white p-6 rounded-2xl backdrop-blur-sm border-2 border-white/10 hover:border-white transition-all transform hover:scale-110 shadow-[0_0_30px_rgba(0,0,0,0.8)]"
+                           onClick={() => {
+                               const validUsers = room.users.filter(u => u.role === 'producer' || u.role === 'host');
+                               const idx = validUsers.findIndex(u => u.username === judgeWatching);
+                               const nextIdx = idx <= 0 ? validUsers.length - 1 : idx - 1;
+                               const nextUser = validUsers[nextIdx];
+                               if (nextUser) {
+                                   setJudgeWatching(nextUser.username);
+                                   if ((window as any).judgeMap?.[nextUser.username]) {
+                                       useDawStore.setState((window as any).judgeMap[nextUser.username]);
+                                   }
+                               }
+                           }}
+                       >
+                           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                       </button>
+                   </div>
+                   
+                   <div className="absolute inset-y-0 right-8 px-4 flex items-center z-[110]">
+                       <button 
+                           className="bg-black/50 hover:bg-[#ff7d2e]/90 text-white p-6 rounded-2xl backdrop-blur-sm border-2 border-white/10 hover:border-white transition-all transform hover:scale-110 shadow-[0_0_30px_rgba(0,0,0,0.8)]"
+                           onClick={() => {
+                               const validUsers = room.users.filter(u => u.role === 'producer' || u.role === 'host');
+                               const idx = validUsers.findIndex(u => u.username === judgeWatching);
+                               const nextIdx = (idx + 1) % validUsers.length;
+                               const nextUser = validUsers[nextIdx];
+                               if (nextUser) {
+                                   setJudgeWatching(nextUser.username);
+                                   if ((window as any).judgeMap?.[nextUser.username]) {
+                                       useDawStore.setState((window as any).judgeMap[nextUser.username]);
+                                   }
+                               }
+                           }}
+                       >
+                           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                       </button>
+                   </div>
+               </>
            )}
 
            {(!isMatchActive && room.status === 'waiting') && (
@@ -464,30 +514,32 @@ export default function Room() {
            )}
 
            {/* FL Studio Windows */}
-           <ChannelRack />
-           <ChannelSettings />
+           <div className="absolute inset-0 z-0" style={{ pointerEvents: role === 'judge' ? 'none' : 'auto' }}>
+               <ChannelRack />
+               <ChannelSettings />
 
-           <div ref={pianoRollWindowRef} className="absolute fl-window flex flex-col pointer-events-auto" style={{ zIndex: 5, left: pianoRollPosRef.current.x, top: pianoRollPosRef.current.y, width: pianoRollPosRef.current.w, height: pianoRollPosRef.current.h }}>
-              {/* Piano Roll Window Header */}
-              <div className="fl-window-header h-[22px] px-2 flex justify-between items-center text-[11px] font-bold tracking-tight cursor-default" onMouseDown={handlePianoRollDrag} onDoubleClick={(e) => toggleMaximize(e)}>
-                 <div className="flex items-center gap-2 pointer-events-none">
-                    <span className="text-[#7ae15a] scale-110">≣</span> Piano roll - {dawState.tracks.find(t => t.id === dawState.selectedTrackId)?.name || 'Sampler'}
-                 </div>
-                 <div className="flex items-center gap-1.5 h-full py-[3px]">
-                   <div className="w-[1px] h-full bg-[#1a1e22] border-r border-[#50585d] mx-1 mr-2" />
-                   <div className="w-[14px] h-[14px] bg-[#4f585d] border border-[#1a1e22] rounded-[1px] flex justify-center items-center cursor-pointer hover:bg-[#606a6e] shadow-[inset_1px_1px_1px_rgba(255,255,255,0.2)]" onMouseDown={(e) => e.stopPropagation()}><div className="w-1.5 h-[1.5px] bg-white"/></div>
-                   <div className="w-[14px] h-[14px] bg-[#4f585d] border border-[#1a1e22] rounded-[1px] flex justify-center items-center cursor-pointer hover:bg-[#606a6e] shadow-[inset_1px_1px_1px_rgba(255,255,255,0.2)]" onMouseDown={(e) => toggleMaximize(e)}><div className="w-[6px] h-[6px] border border-white"/></div>
-                   <div className="w-[14px] h-[14px] bg-[#4f585d] border border-[#1a1e22] rounded-[1px] flex justify-center items-center cursor-pointer hover:bg-[#606a6e] shadow-[inset_1px_1px_1px_rgba(255,255,255,0.2)] font-black text-[9px] text-white" onMouseDown={(e) => e.stopPropagation()}>X</div>
-                 </div>
-              </div>
-              
-              {/* Piano Roll content */}
-              <div className="flex-1 overflow-hidden relative flex flex-col bg-[#353b3f]">
-                 <PianoRoll />
-              </div>
-              <div className="absolute bottom-0 right-0 w-5 h-5 cursor-se-resize z-50 flex items-end justify-end p-[4px] opacity-70 hover:opacity-100" onMouseDown={handlePianoRollResize}>
-                   <div className="w-2.5 h-2.5 border-r-[2px] border-b-[2px] border-[#a0aab0]" />
-              </div>
+               <div ref={pianoRollWindowRef} className={`absolute fl-window flex flex-col ${role === 'judge' ? 'pointer-events-none' : 'pointer-events-auto'}`} style={{ zIndex: 5, left: pianoRollPosRef.current.x, top: pianoRollPosRef.current.y, width: pianoRollPosRef.current.w, height: pianoRollPosRef.current.h }}>
+                  {/* Piano Roll Window Header */}
+                  <div className="fl-window-header h-[22px] px-2 flex justify-between items-center text-[11px] font-bold tracking-tight cursor-default" onMouseDown={handlePianoRollDrag} onDoubleClick={(e) => toggleMaximize(e)}>
+                     <div className="flex items-center gap-2 pointer-events-none">
+                        <span className="text-[#7ae15a] scale-110">≣</span> Piano roll - {dawState.tracks.find(t => t.id === dawState.selectedTrackId)?.name || 'Sampler'}
+                     </div>
+                     <div className="flex items-center gap-1.5 h-full py-[3px]">
+                       <div className="w-[1px] h-full bg-[#1a1e22] border-r border-[#50585d] mx-1 mr-2" />
+                       <div className="w-[14px] h-[14px] bg-[#4f585d] border border-[#1a1e22] rounded-[1px] flex justify-center items-center cursor-pointer hover:bg-[#606a6e] shadow-[inset_1px_1px_1px_rgba(255,255,255,0.2)]" onMouseDown={(e) => e.stopPropagation()}><div className="w-1.5 h-[1.5px] bg-white"/></div>
+                       <div className="w-[14px] h-[14px] bg-[#4f585d] border border-[#1a1e22] rounded-[1px] flex justify-center items-center cursor-pointer hover:bg-[#606a6e] shadow-[inset_1px_1px_1px_rgba(255,255,255,0.2)]" onMouseDown={(e) => toggleMaximize(e)}><div className="w-[6px] h-[6px] border border-white"/></div>
+                       <div className="w-[14px] h-[14px] bg-[#4f585d] border border-[#1a1e22] rounded-[1px] flex justify-center items-center cursor-pointer hover:bg-[#606a6e] shadow-[inset_1px_1px_1px_rgba(255,255,255,0.2)] font-black text-[9px] text-white" onMouseDown={(e) => e.stopPropagation()}>X</div>
+                     </div>
+                  </div>
+                  
+                  {/* Piano Roll content */}
+                  <div className="flex-1 overflow-hidden relative flex flex-col bg-[#353b3f]">
+                     <PianoRoll />
+                  </div>
+                  <div className="absolute bottom-0 right-0 w-5 h-5 cursor-se-resize z-50 flex items-end justify-end p-[4px] opacity-70 hover:opacity-100" onMouseDown={handlePianoRollResize}>
+                       <div className="w-2.5 h-2.5 border-r-[2px] border-b-[2px] border-[#a0aab0]" />
+                  </div>
+               </div>
            </div>
 
         </div>

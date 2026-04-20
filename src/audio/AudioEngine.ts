@@ -165,25 +165,29 @@ class AudioEngine {
              groupedNotes[t].duration = Math.max(groupedNotes[t].duration, note.duration);
           });
 
-          if ((this as any)[`scheduled_${track.id}`]) {
-             (this as any)[`scheduled_${track.id}`].forEach((id: number) => Tone.Transport.clear(id));
+          if ((this as any)[`part_${track.id}`]) {
+             (this as any)[`part_${track.id}`].dispose();
           }
-          (this as any)[`scheduled_${track.id}`] = [];
 
-          Object.entries(groupedNotes).forEach(([timeStr, data]) => {
-             const floatTime = parseFloat(timeStr);
-             const timeInTicks = floatTime * (Tone.Transport.PPQ / 4) + "i"; 
-             const durationInTicks = data.duration * (Tone.Transport.PPQ / 4) + "i";
-
-             const schedId = Tone.Transport.schedule((time) => {
-                if (instrument instanceof Tone.PolySynth) {
-                   instrument.triggerRelease(data.notes, time - 0.001); 
-                }
-                instrument.triggerAttackRelease(data.notes, durationInTicks, time, data.maxVelocity);
-             }, timeInTicks);
-             
-             (this as any)[`scheduled_${track.id}`].push(schedId);
+          const partEvents = Object.entries(groupedNotes).map(([timeStr, data]) => {
+              const floatTime = parseFloat(timeStr);
+              return { 
+                  time: floatTime * (Tone.Transport.PPQ / 4) + "i", 
+                  notes: data.notes, 
+                  velocity: data.maxVelocity,
+                  duration: data.duration * (Tone.Transport.PPQ / 4) + "i"
+              };
           });
+
+          const part = new Tone.Part((time, value) => {
+              if (instrument instanceof Tone.PolySynth) {
+                 instrument.triggerRelease(value.notes, time - 0.001); 
+              }
+              instrument.triggerAttackRelease(value.notes, value.duration, time, value.velocity);
+          }, partEvents).start(0);
+
+          part.loop = false; // We use Transport loop
+          (this as any)[`part_${track.id}`] = part;
       }
     });
   }
