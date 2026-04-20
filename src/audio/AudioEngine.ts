@@ -153,34 +153,21 @@ class AudioEngine {
             this.parts.get(track.id)!.dispose();
           }
 
-          const groupedNotes: Record<number, { notes: string[], maxVelocity: number, duration: number }> = {};
-          
-          track.notes.forEach((note: any) => {
-             const t = note.time;
-             if (!groupedNotes[t]) {
-                 groupedNotes[t] = { notes: [], maxVelocity: 0, duration: note.duration };
-             }
-             groupedNotes[t].notes.push(note.pitch);
-             groupedNotes[t].maxVelocity = Math.max(groupedNotes[t].maxVelocity, note.velocity);
-             groupedNotes[t].duration = Math.max(groupedNotes[t].duration, note.duration);
-          });
-
           if ((this as any)[`part_${track.id}`]) {
              (this as any)[`part_${track.id}`].dispose();
           }
 
-          const partEvents = Object.entries(groupedNotes).map(([timeStr, data]) => {
-              const floatTime = parseFloat(timeStr);
+          const partEvents = track.notes.map((note: any) => {
               return { 
-                  time: floatTime * (Tone.Transport.PPQ / 4) + "i", 
-                  notes: data.notes, 
-                  velocity: data.maxVelocity,
-                  duration: data.duration * (Tone.Transport.PPQ / 4) + "i"
+                  time: note.time * (Tone.Transport.PPQ / 4) + "i", 
+                  pitch: note.pitch, 
+                  velocity: note.velocity,
+                  duration: note.duration * (Tone.Transport.PPQ / 4) + "i"
               };
           });
 
           const part = new Tone.Part((time, value) => {
-              instrument.triggerAttackRelease(value.notes, value.duration, time, value.velocity);
+              instrument.triggerAttackRelease(value.pitch, value.duration, time, value.velocity);
           }, partEvents).start(0);
 
           part.loop = false; // We use Transport loop

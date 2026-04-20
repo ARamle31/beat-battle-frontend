@@ -99,7 +99,7 @@ export const useDawStore = create<DawState>((set) => ({
   loopActive: true,
   loopStart: 0,
   loopEnd: 16, // Default 1 bar loop (16 16ths)
-  snapInterval: 4, // Default 1 beat (4 steps)
+  snapInterval: 1, // Default 1 step
   lastNoteDuration: 1,
 
   selectedTrackId: 'track-1',

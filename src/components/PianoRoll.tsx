@@ -380,7 +380,8 @@ export default function PianoRoll() {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const isRightEdge = e.clientX > rect.right - 10;
     
-    const mouseStep = getStepFromEvent(e, false);
+    // Always calculate raw un-snapped coordinates for tracking accurate drag deltas
+    const mouseStep = getStepFromEvent(e, true);
     const mousePitchIndex = getPitchFromEvent(e);
 
     if (isRightEdge) {
@@ -440,7 +441,8 @@ export default function PianoRoll() {
     }
 
     // Coordinates are mathematically extracted from grid to bypass window scrolling interference
-    const currentStep = getStepFromEvent(e, false);
+    // Use raw step coordinate (true) to allow smooth un-snapped alt dragging
+    const currentStep = getStepFromEvent(e, true);
     const currentPitchIndex = getPitchFromEvent(e);
     
     const rawStepsMoved = currentStep - startMouseX;
