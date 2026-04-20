@@ -394,10 +394,15 @@ export default function Room() {
                   </div>
 
                   {role === 'host' ? (
-                     <button onClick={handleStartMatch} className="group relative bg-[#0c0d10] text-white hover:text-blue-300 font-black text-2xl uppercase tracking-[0.2em] px-16 py-6 rounded-full border border-white/10 transition-all hover:bg-white/5 overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-indigo-600/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                        <span className="relative z-10 flex items-center gap-4">Start Battle <span className="text-blue-500">&rarr;</span></span>
-                     </button>
+                     <div className="flex flex-col items-center gap-3">
+                         <button onClick={handleStartMatch} className="group relative bg-[#0c0d10] text-white hover:text-blue-300 font-black text-2xl uppercase tracking-[0.2em] px-16 py-6 rounded-full border border-white/10 transition-all hover:bg-white/5 overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-indigo-600/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                            <span className="relative z-10 flex items-center gap-4">Start Battle <span className="text-blue-500">&rarr;</span></span>
+                         </button>
+                         <span className="text-xs font-bold text-slate-500 tracking-widest uppercase">
+                            MATCH DURATION: <span className="text-[#FF7D2E]">{useLobbyStore.getState().matchDuration} MINUTES</span>
+                         </span>
+                     </div>
                   ) : (
                      <div className="flex flex-col items-center gap-4">
                         <div className="w-12 h-12 border-4 border-white/5 border-t-white/50 rounded-full animate-spin" />

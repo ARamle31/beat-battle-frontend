@@ -185,9 +185,19 @@ export default function FlToolbar({
 
         {/* Status Panel LCD */}
         <div className={panelStyle}>
-            <div className="w-[160px] h-[34px] bg-[#1a1e22] border border-[#111] rounded-[2px] shadow-[inset_1px_1px_4px_rgba(0,0,0,0.9)] flex justify-center items-center relative overflow-hidden">
+            <div className="w-[160px] h-[34px] bg-[#1a1e22] border border-[#111] rounded-[2px] shadow-[inset_1px_1px_4px_rgba(0,0,0,0.9)] flex flex-col justify-center items-center relative overflow-hidden">
                  <div className="absolute inset-0 pointer-events-none opacity-[0.05]" style={{ backgroundImage: 'repeating-linear-gradient(to bottom, transparent, transparent 1px, #fff 1px, #fff 2px)' }} />
-                 <div className="text-[var(--fl-green)] text-[12px] font-mono font-bold tracking-widest textShadow drop-shadow-[0_0_4px_var(--fl-green)] opacity-90">{isPlaying ? 'PLAYING...' : 'STUDIO MATCH'}</div>
+                 {isMatchActive ? (
+                    <>
+                       <div className="text-[var(--fl-orange)] text-[14px] font-mono font-black tracking-widest textShadow drop-shadow-[0_0_4px_var(--fl-orange)] opacity-90">
+                          {formatTime(room?.matchTimeRemaining || 0)}
+                       </div>
+                    </>
+                 ) : (
+                    <div className="text-[var(--fl-green)] text-[12px] font-mono font-bold tracking-widest textShadow drop-shadow-[0_0_4px_var(--fl-green)] opacity-90">
+                       {isPlaying ? 'PLAYING...' : 'STUDIO MATCH'}
+                    </div>
+                 )}
             </div>
         </div>
 
