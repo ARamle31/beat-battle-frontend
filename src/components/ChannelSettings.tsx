@@ -4,13 +4,15 @@ import { useLobbyStore } from '../store/useLobbyStore';
 
 export default function ChannelSettings() {
   const { tracks, updateTrack, selectedTrackId, activeWindow, setActiveWindow } = useDawStore();
-  const { role, room } = useLobbyStore();
+  const { role, room, username } = useLobbyStore();
   const dawStore = useDawStore();
   
   const windowRef = useRef<HTMLDivElement>(null);
   const posRef = useRef({ x: 600, y: 80 });
   
-  const isProducer = role === 'producer' || role === 'host';
+  const isActiveShowcaseTarget = room?.status === 'voting' && room?.showcaseQueue?.[room?.showcaseIndex || 0] === username;
+  const isMatchActive = room?.status === 'active' || isActiveShowcaseTarget;
+  const isProducer = (role === 'producer' || role === 'host') && isMatchActive;
 
   const Knob = ({ param, trackId, label, min, max }: { param: string, trackId: string, label: string, min: number, max: number }) => {
     const track = dawStore.tracks.find(t => t.id === trackId);

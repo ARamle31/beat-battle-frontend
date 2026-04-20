@@ -29,9 +29,9 @@ export default function PianoRoll() {
   const dawStore = useDawStore();
 
   const selectedTrack = tracks.find(t => t.id === selectedTrackId);
-  const isProducer = role === 'producer' || role === 'host';
   const isActiveShowcaseTarget = room?.status === 'voting' && room?.showcaseQueue?.[room?.showcaseIndex || 0] === username;
   const isMatchActive = room?.status === 'active' || isActiveShowcaseTarget;
+  const isProducer = (role === 'producer' || role === 'host') && isMatchActive;
 
   const [activeTool, setActiveTool] = useState(0);
 

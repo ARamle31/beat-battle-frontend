@@ -269,7 +269,9 @@ export default function Room() {
          </div>
          <button 
            disabled={!directJoinUser}
-           onClick={() => {
+           onClick={async () => {
+              await import('../audio/AudioEngine').then(m => m.engine.init());
+              setAudioInited(true);
               useLobbyStore.getState().setLobbyState({ roomId: id, username: directJoinUser, role: directJoinRole });
               socket.emit('join_room', { roomId: id, role: directJoinRole, username: directJoinUser });
            }} 

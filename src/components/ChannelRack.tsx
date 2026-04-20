@@ -7,9 +7,10 @@ import * as Tone from 'tone';
 export default function ChannelRack() {
   const { tracks, updateTrack, selectedTrackId, setSelectedTrackId, isChannelRackOpen, setIsChannelRackOpen } = useDawStore();
   const dawStore = useDawStore();
-  const { role, room } = useLobbyStore();
-  const isProducer = role === 'producer' || role === 'host';
-  const isMatchActive = room?.status === 'active';
+  const { role, room, username } = useLobbyStore();
+  const isActiveShowcaseTarget = room?.status === 'voting' && room?.showcaseQueue?.[room?.showcaseIndex || 0] === username;
+  const isMatchActive = room?.status === 'active' || isActiveShowcaseTarget;
+  const isProducer = (role === 'producer' || role === 'host') && isMatchActive;
 
   const STEPS = 16;
 

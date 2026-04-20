@@ -20,21 +20,23 @@ export default function Home() {
     initSocket();
   }, []);
 
-  const handleJoin = (targetRoomId: string, targetRole?: Role) => {
-    const finalRole = targetRole || role;
-    if (!targetRoomId || !username || !finalRole) return;
-
-    setLobbyState({ roomId: targetRoomId, username, role: finalRole });
-    socket.emit('join_room', { roomId: targetRoomId, role: finalRole, username });
-    navigate(`/room/${targetRoomId}`);
-  };
-
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!username) return;
     const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+    await import('../audio/AudioEngine').then(m => m.engine.init());
     setLobbyState({ roomId: newRoomId, username, role: 'host' });
     socket.emit('join_room', { roomId: newRoomId, role: 'host', username });
     navigate(`/room/${newRoomId}`);
+  };
+
+  const handleJoin = async (targetRoomId: string, targetRole?: Role) => {
+    const finalRole = targetRole || role;
+    if (!targetRoomId || !username || !finalRole) return;
+
+    await import('../audio/AudioEngine').then(m => m.engine.init());
+    setLobbyState({ roomId: targetRoomId, username, role: finalRole });
+    socket.emit('join_room', { roomId: targetRoomId, role: finalRole, username });
+    navigate(`/room/${targetRoomId}`);
   };
 
   return (
