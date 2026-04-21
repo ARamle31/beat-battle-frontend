@@ -7,6 +7,7 @@ import { MousePointer2, Volume2 } from 'lucide-react';
 import ChannelSettings from '../components/ChannelSettings';
 import PianoRoll from '../components/PianoRoll';
 import FlToolbar from '../components/FlToolbar';
+import CursorsOverlay from '../components/CursorsOverlay';
 import Browser from '../components/Browser';
 import ChannelRack from '../components/ChannelRack';
 import { engine } from '../audio/AudioEngine';
@@ -22,7 +23,6 @@ export default function Room() {
 
   const [directJoinRole, setDirectJoinRole] = useState<'producer'|'judge'>('producer');
   const [directJoinUser, setDirectJoinUser] = useState('');
-  const [cursors, setCursors] = useState<Record<string, {x: number, y: number}>>({});
 
   const pianoRollWindowRef = useRef<HTMLDivElement>(null);
   const pianoRollPosRef = useRef({ x: 60, y: 280, w: 900, h: 480, isMaximized: false, storedX: 60, storedY: 280, storedW: 900, storedH: 480 });
@@ -145,11 +145,6 @@ export default function Room() {
             import('../audio/AudioEngine').then(m => m.engine.playPreview(data.trackId, data.pitch));
         }
     };
-
-    const handleCursorMove = (data: any) => {
-       if (data.senderId === socket.id) return;
-       setCursors(prev => ({ ...prev, [data.username]: { x: data.x, y: data.y } }));
-    };
     
     // Bind socket persistence sync for Judges and recovering Producers
     const handleStateUpdate = (data: any) => {
@@ -245,7 +240,6 @@ export default function Room() {
     socket.on('playhead_sync', handlePlayheadSync);
     socket.on('ui_interaction', handleUiInteraction);
     socket.on('play_preview', handlePlayPreview);
-    socket.on('cursor_move', handleCursorMove);
     socket.on('join_rejected', handleJoinRejected);
     return () => { 
         socket.off('connect', handleConnect);
@@ -253,7 +247,6 @@ export default function Room() {
         socket.off('playhead_sync', handlePlayheadSync);
         socket.off('ui_interaction', handleUiInteraction);
         socket.off('play_preview', handlePlayPreview);
-        socket.off('cursor_move', handleCursorMove);
         socket.off('join_rejected', handleJoinRejected);
     };
   }, [id, role, username, navigate, judgeWatching]);
@@ -370,23 +363,8 @@ export default function Room() {
     <div 
        className="h-screen w-screen flex flex-col font-sans select-none text-[11px] animation-fade-in relative" 
        style={{ backgroundColor: 'var(--fl-bg-dark)' }}
-       onMouseMove={(e) => {
-           if (role !== 'producer' && role !== 'host') return;
-           const t = Date.now();
-           if ((window as any).lastCursorEmit && t - (window as any).lastCursorEmit < 20) return;
-           (window as any).lastCursorEmit = t;
-           socket.emit('cursor_move', { roomId: id, username, senderId: socket.id, x: e.clientX, y: e.clientY });
-       }}
     >
-       {/* Global Multiplayer Cursors (Absolute to window) */}
-       {Object.entries(cursors).map(([uname, pos]) => (
-           <div key={uname} className="fixed pointer-events-none z-[99999]" style={{ left: `${pos.x}px`, top: `${pos.y}px`, transition: 'all 0.05s linear' }}>
-              <svg className="w-5 h-5 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" viewBox="0 0 24 24" fill="currentColor" stroke="black" strokeWidth="1.5" style={{ transform: 'rotate(-25deg)', transformOrigin: 'top left' }}>
-                 <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.42a.5.5 0 0 0 .35-.85L5.5 3.21Z" />
-              </svg>
-              <div className="absolute top-5 left-3 bg-[#FF7D2E] text-black text-[10px] font-black px-1.5 py-0.5 rounded-sm whitespace-nowrap shadow-xl border border-black/20 uppercase tracking-widest">{uname}</div>
-           </div>
-       ))}
+       <CursorsOverlay />
 
       {/* FL Studio Top Toolbar */}
       <FlToolbar audioInited={audioInited} setAudioInited={setAudioInited} />
