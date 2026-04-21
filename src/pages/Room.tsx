@@ -119,6 +119,15 @@ export default function Room() {
     initSocket();
     if (!role || !username || !id) return;
     
+    // Recover securely if the socket restarts via HMR or Ping timeout
+    const handleConnect = () => {
+        const { role, username, matchMode } = useLobbyStore.getState();
+        if (role && username && id) {
+             socket.emit('join_room', { roomId: id, role, username, mode: matchMode });
+        }
+    };
+    socket.on('connect', handleConnect);
+
     // Explicitly join room if we navigated here via direct URL with LocalStorage initialized
     if (!room) {
         useLobbyStore.getState().setLobbyState({ roomId: id });
@@ -239,6 +248,7 @@ export default function Room() {
     socket.on('cursor_move', handleCursorMove);
     socket.on('join_rejected', handleJoinRejected);
     return () => { 
+        socket.off('connect', handleConnect);
         socket.off('producer_state_update', handleStateUpdate); 
         socket.off('playhead_sync', handlePlayheadSync);
         socket.off('ui_interaction', handleUiInteraction);
