@@ -275,12 +275,14 @@ export default function Room() {
   useEffect(() => {
     if (!isProducer || !id) return;
     return useDawStore.subscribe((state, prevState) => {
-       // Filter out playhead position from causing massive web socket floods
-       if (state.playheadPosition !== prevState.playheadPosition && Object.keys(state).length === 1) return;
        if ((window as any).isIncomingNetworkUpdate) {
            (window as any).isIncomingNetworkUpdate = false;
            return;
        }
+
+       // Filter out playhead position from causing massive 60FPS web socket floods
+       const changedKeys = Object.keys(state).filter(k => state[k as keyof typeof state] !== prevState[k as keyof typeof state]);
+       if (changedKeys.length === 0 || (changedKeys.length === 1 && changedKeys[0] === 'playheadPosition')) return;
        socket.emit('daw_state_update', { roomId: id, state });
     });
   }, [isProducer, id]);
