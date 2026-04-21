@@ -195,15 +195,6 @@ export default function Room() {
                            (Tone.Transport.ticks = data.ticks);
                   }
              }
-        } else if (currentRoom?.mode === 'multiplayer' && useLobbyStore.getState().role !== 'host') {
-             const hostUser = currentRoom.users.find(u => u.id === currentRoom.host);
-             if (hostUser?.username === data.username) {
-                  if (Math.abs(Tone.Transport.ticks - data.ticks) > 5) {
-                      engine.analyser?.context?.transport ? 
-                           (engine.analyser.context.transport.ticks = data.ticks) : 
-                           (Tone.Transport.ticks = data.ticks);
-                  }
-             }
         }
     };
     
