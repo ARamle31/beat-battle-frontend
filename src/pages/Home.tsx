@@ -172,16 +172,28 @@ export default function Home() {
                   <h3 className="text-xs font-black tracking-widest uppercase text-white/90">Host Session</h3>
                </div>
                
-               <div className="flex justify-between items-center mb-3 bg-[#060709] rounded-2xl p-4 border border-white/5">
-                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Mode</span>
-                  <select 
-                     value={matchMode} 
-                     onChange={(e) => setLobbyState({ matchMode: e.target.value as 'battle' | 'multiplayer' })}
-                     className="bg-transparent border-none text-right text-[#64B7EE] font-black text-xs uppercase tracking-widest focus:outline-none appearance-none cursor-pointer"
-                  >
-                     <option value="battle">Battle Mode</option>
-                     <option value="multiplayer">Free Roam</option>
-                  </select>
+               <div className="flex flex-col gap-2 mb-5">
+                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest px-1">Session Mode</span>
+                  <div className="relative flex bg-[#060709] border border-white/5 rounded-2xl p-1.5 h-[52px]">
+                      {/* Sliding Pill Background */}
+                      <div 
+                         className={`absolute top-1.5 bottom-1.5 w-[calc(50%-6px)] rounded-xl transition-transform duration-300 ease-out shadow-lg ${matchMode === 'battle' ? 'translate-x-0 bg-gradient-to-br from-[#FF7D2E] to-[#E55D10]' : 'translate-x-[calc(100%+8px)] bg-gradient-to-br from-[#64B7EE] to-[#3B82F6]'}`} 
+                      />
+                      
+                      {/* Selection Buttons */}
+                      <button 
+                         onClick={() => setLobbyState({ matchMode: 'battle' })}
+                         className={`flex-1 flex items-center justify-center relative z-10 font-black text-[10px] uppercase tracking-widest transition-colors duration-300 ${matchMode === 'battle' ? 'text-white' : 'text-white/40 hover:text-white/80'}`}
+                      >
+                         Battle
+                      </button>
+                      <button 
+                         onClick={() => setLobbyState({ matchMode: 'multiplayer' })}
+                         className={`flex-1 flex items-center justify-center relative z-10 font-black text-[10px] uppercase tracking-widest transition-colors duration-300 ${matchMode === 'multiplayer' ? 'text-white' : 'text-white/40 hover:text-white/80'}`}
+                      >
+                         Free Roam
+                      </button>
+                  </div>
                </div>
 
                <div className="flex justify-between items-center mb-6 bg-[#060709] rounded-2xl p-4 border border-white/5">
