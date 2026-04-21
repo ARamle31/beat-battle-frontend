@@ -141,19 +141,19 @@ export default function Room() {
     };
 
     const handlePlayPreview = (data: any) => {
-        if (data.username !== useLobbyStore.getState().username) {
+        if (data.senderId !== socket.id) {
             import('../audio/AudioEngine').then(m => m.engine.playPreview(data.trackId, data.pitch));
         }
     };
 
     const handleCursorMove = (data: any) => {
-       if (data.username === useLobbyStore.getState().username) return;
+       if (data.senderId === socket.id) return;
        setCursors(prev => ({ ...prev, [data.username]: { x: data.x, y: data.y } }));
     };
     
     // Bind socket persistence sync for Judges and recovering Producers
     const handleStateUpdate = (data: any) => {
-        const isMe = useLobbyStore.getState().username === data.username;
+        const isMe = socket.id === data.producerId;
         const currentRoom = useLobbyStore.getState().room;
         
         if (isMe && !(window as any).hasRestored) {
@@ -214,7 +214,7 @@ export default function Room() {
     
     const handleUiInteraction = (data: any) => {
          const currentRoom = useLobbyStore.getState().room;
-         const isMe = data.username === useLobbyStore.getState().username;
+         const isMe = data.senderId === socket.id;
          if (isMe) return;
 
          let shouldApply = false;
@@ -373,7 +373,7 @@ export default function Room() {
            const t = Date.now();
            if ((window as any).lastCursorEmit && t - (window as any).lastCursorEmit < 20) return;
            (window as any).lastCursorEmit = t;
-           socket.emit('cursor_move', { roomId: id, username, x: e.clientX, y: e.clientY });
+           socket.emit('cursor_move', { roomId: id, username, senderId: socket.id, x: e.clientX, y: e.clientY });
        }}
     >
        {/* Global Multiplayer Cursors (Absolute to window) */}
