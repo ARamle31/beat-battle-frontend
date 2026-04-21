@@ -23,6 +23,10 @@ class AudioEngine {
     
     this.initialized = true;
 
+    // Map initial configuration state to AudioEngine instantly
+    const currentState = useDawStore.getState();
+    this.syncState(currentState, { tracks: [] });
+
     useDawStore.subscribe((state, prevState) => {
       this.syncState(state, prevState);
     });
