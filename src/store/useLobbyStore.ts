@@ -11,6 +11,7 @@ interface User {
 interface RoomState {
   id: string;
   host: string;
+  mode: 'battle' | 'multiplayer';
   status: 'waiting' | 'active' | 'finished' | 'voting' | 'awarded';
   users: User[];
   matchTimeRemaining: number;
@@ -23,6 +24,7 @@ export interface PublicRoom {
   id: string;
   usersCount: number;
   status: 'waiting' | 'active';
+  mode: 'battle' | 'multiplayer';
 }
 
 interface LobbyState {
@@ -34,6 +36,7 @@ interface LobbyState {
   spectateTargetId: string | null; // For judges
   judgeWatching: string | null; // The exact producer username the judge is spectating
   matchDuration: number; // in minutes
+  matchMode: 'battle' | 'multiplayer';
   
   setLobbyState: (state: Partial<LobbyState>) => void;
   setRoomState: (room: RoomState) => void;
@@ -55,6 +58,7 @@ export const useLobbyStore = create<LobbyState>((set) => ({
   spectateTargetId: null,
   judgeWatching: null,
   matchDuration: 10, // Default 10 mins
+  matchMode: 'battle',
 
   setLobbyState: (newState) => set((state) => {
      if (newState.username !== undefined || newState.role !== undefined) {
@@ -69,5 +73,5 @@ export const useLobbyStore = create<LobbyState>((set) => ({
   setPublicRooms: (publicRooms) => set({ publicRooms }),
   setSpectateTargetId: (spectateTargetId) => set({ spectateTargetId }),
   setJudgeWatching: (judgeWatching) => set({ judgeWatching }),
-  reset: () => set({ roomId: null, role: null, username: '', room: null, publicRooms: [], spectateTargetId: null, judgeWatching: null, matchDuration: 10 })
+  reset: () => set({ roomId: null, role: null, username: '', room: null, publicRooms: [], spectateTargetId: null, judgeWatching: null, matchDuration: 10, matchMode: 'battle' })
 }));

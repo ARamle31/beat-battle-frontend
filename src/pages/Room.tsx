@@ -164,6 +164,13 @@ export default function Room() {
             if (data.hasState && data.state) {
                 useDawStore.setState(data.state);
             }
+        } else if (currentRoom?.mode === 'multiplayer' && !isMe) {
+            if (data.hasState && data.state) {
+                const localHistory = useDawStore.getState().history;
+                const localFuture = useDawStore.getState().future;
+                (window as any).isIncomingNetworkUpdate = true;
+                useDawStore.setState({ ...data.state, history: localHistory, future: localFuture });
+            }
         }
     };
     
@@ -182,22 +189,31 @@ export default function Room() {
     };
     
     const handleUiInteraction = (data: any) => {
+         const currentRoom = useLobbyStore.getState().room;
+         const isMe = data.username === useLobbyStore.getState().username;
+         if (isMe) return;
+
+         let shouldApply = false;
          if (useLobbyStore.getState().role === 'judge') {
               const targetWatching = useLobbyStore.getState().judgeWatching;
-              if (targetWatching === data.username) {
-                  if (data.type === 'maximize_pianoroll') {
-                      toggleMaximize(null, data.value);
-                  }
-                  if (data.type === 'piano_roll_pos') {
-                      pianoRollPosRef.current = { ...pianoRollPosRef.current, ...data.value };
-                      if (pianoRollWindowRef.current) {
-                          pianoRollWindowRef.current.style.left = `${data.value.x}px`;
-                          pianoRollWindowRef.current.style.top = `${data.value.y}px`;
-                          pianoRollWindowRef.current.style.width = `${data.value.w}px`;
-                          pianoRollWindowRef.current.style.height = `${data.value.h}px`;
-                      }
-                  }
-              }
+              if (targetWatching === data.username) shouldApply = true;
+         } else if (currentRoom?.mode === 'multiplayer') {
+              shouldApply = true;
+         }
+
+         if (shouldApply) {
+             if (data.type === 'maximize_pianoroll') {
+                 toggleMaximize(null, data.value);
+             }
+             if (data.type === 'piano_roll_pos') {
+                 pianoRollPosRef.current = { ...pianoRollPosRef.current, ...data.value };
+                 if (pianoRollWindowRef.current) {
+                     pianoRollWindowRef.current.style.left = `${data.value.x}px`;
+                     pianoRollWindowRef.current.style.top = `${data.value.y}px`;
+                     if (data.value.w) pianoRollWindowRef.current.style.width = `${data.value.w}px`;
+                     if (data.value.h) pianoRollWindowRef.current.style.height = `${data.value.h}px`;
+                 }
+             }
          }
     };
     
@@ -234,6 +250,10 @@ export default function Room() {
     return useDawStore.subscribe((state, prevState) => {
        // Filter out playhead position from causing massive web socket floods
        if (state.playheadPosition !== prevState.playheadPosition && Object.keys(state).length === 1) return;
+       if ((window as any).isIncomingNetworkUpdate) {
+           (window as any).isIncomingNetworkUpdate = false;
+           return;
+       }
        socket.emit('daw_state_update', { roomId: id, state });
     });
   }, [isProducer, id]);
@@ -334,12 +354,23 @@ export default function Room() {
                if (role !== 'producer' && role !== 'host') return;
                const rect = e.currentTarget.getBoundingClientRect();
                const t = Date.now();
-               if ((window as any).lastCursorEmit && t - (window as any).lastCursorEmit < 40) return;
+               if ((window as any).lastCursorEmit && t - (window as any).lastCursorEmit < 20) return;
                (window as any).lastCursorEmit = t;
-               socket.emit('cursor_move', { roomId: id, username, x: e.clientX - rect.left, y: e.clientY - rect.top });
+               const xPct = ((e.clientX - rect.left) / rect.width) * 100;
+               const yPct = ((e.clientY - rect.top) / rect.height) * 100;
+               socket.emit('cursor_move', { roomId: id, username, x: xPct, y: yPct });
            }}
         >
            
+           {Object.entries(cursors).map(([uname, pos]) => (
+               <div key={uname} className="absolute pointer-events-none z-[9999]" style={{ left: `${pos.x}%`, top: `${pos.y}%`, transition: 'all 0.05s linear' }}>
+                  <svg className="w-5 h-5 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" viewBox="0 0 24 24" fill="currentColor" stroke="black" strokeWidth="1.5" style={{ transform: 'rotate(-25deg)', transformOrigin: 'top left' }}>
+                     <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.42a.5.5 0 0 0 .35-.85L5.5 3.21Z" />
+                  </svg>
+                  <div className="absolute top-5 left-3 bg-[#FF7D2E] text-black text-[10px] font-black px-1.5 py-0.5 rounded-sm whitespace-nowrap shadow-xl border border-black/20 uppercase tracking-widest">{uname}</div>
+               </div>
+           ))}
+
            {role === 'judge' && (
               <div 
                  className="absolute inset-0 z-[300] cursor-not-allowed pointer-events-auto" 

@@ -145,14 +145,27 @@ export default function ChannelRack() {
 
   useEffect(() => {
      const handleUiInteraction = (data: any) => {
+         const currentRoom = useLobbyStore.getState().room;
+         const isMe = data.username === useLobbyStore.getState().username;
+         if (isMe) return;
+
+         let shouldApply = false;
          if (role === 'judge') {
               const targetWatching = useLobbyStore.getState().judgeWatching;
-              if (targetWatching === data.username && data.type === 'channel_rack_pos') {
-                  posRef.current = data.value;
-                  if (windowRef.current) {
-                      windowRef.current.style.left = `${data.value.x}px`;
-                      windowRef.current.style.top = `${data.value.y}px`;
-                  }
+              if (targetWatching === data.username) shouldApply = true;
+         } else if (currentRoom?.mode === 'multiplayer') {
+              shouldApply = true;
+         }
+
+         if (shouldApply && data.type === 'channel_rack_pos') {
+              posRef.current = data.value;
+              if (windowRef.current) {
+                  windowRef.current.style.left = `${data.value.x}px`;
+                  windowRef.current.style.top = `${data.value.y}px`;
+              }
+              if (restoreRef.current) {
+                  restoreRef.current.style.left = `${data.value.x}px`;
+                  restoreRef.current.style.top = `${data.value.y}px`;
               }
          }
      };

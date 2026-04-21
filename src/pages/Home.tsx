@@ -9,7 +9,7 @@ import {
 
 export default function Home() {
   const navigate = useNavigate();
-  const { setLobbyState, publicRooms, matchDuration } = useLobbyStore();
+  const { setLobbyState, publicRooms, matchDuration, matchMode } = useLobbyStore();
   
   const [roomId, setRoomIdInput] = useState('');
   const [username, setUsernameInput] = useState(localStorage.getItem('beatBattleAlias') || '');
@@ -36,7 +36,7 @@ export default function Home() {
     const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
     await import('../audio/AudioEngine').then(m => m.engine.init());
     setLobbyState({ roomId: newRoomId, username, role: 'host' });
-    socket.emit('join_room', { roomId: newRoomId, role: 'host', username });
+    socket.emit('join_room', { roomId: newRoomId, role: 'host', username, mode: matchMode });
     setTimeout(() => navigate(`/room/${newRoomId}`), 400);
   };
 
@@ -172,16 +172,29 @@ export default function Home() {
                   <h3 className="text-xs font-black tracking-widest uppercase text-white/90">Host Session</h3>
                </div>
                
+               <div className="flex justify-between items-center mb-3 bg-[#060709] rounded-2xl p-4 border border-white/5">
+                  <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Mode</span>
+                  <select 
+                     value={matchMode} 
+                     onChange={(e) => setLobbyState({ matchMode: e.target.value as 'battle' | 'multiplayer' })}
+                     className="bg-transparent border-none text-right text-[#64B7EE] font-black text-xs uppercase tracking-widest focus:outline-none appearance-none cursor-pointer"
+                  >
+                     <option value="battle">Battle Mode</option>
+                     <option value="multiplayer">Free Roam</option>
+                  </select>
+               </div>
+
                <div className="flex justify-between items-center mb-6 bg-[#060709] rounded-2xl p-4 border border-white/5">
                   <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Time Limit</span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2" style={{ opacity: matchMode === 'multiplayer' ? 0.3 : 1 }}>
                       <input 
                          type="number"
                          min={1}
                          max={60}
                          value={matchDuration}
+                         disabled={matchMode === 'multiplayer'}
                          onChange={(e) => setLobbyState({ matchDuration: parseInt(e.target.value) || 10 })}
-                         className="bg-transparent border-none w-8 text-right text-white font-black text-sm focus:outline-none"
+                         className="bg-transparent border-none w-8 text-right text-white font-black text-sm focus:outline-none disabled:bg-transparent"
                       />
                       <span className="text-[10px] font-bold text-white/40 uppercase">Min</span>
                   </div>
