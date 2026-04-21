@@ -131,6 +131,12 @@ export default function Room() {
         navigate('/');
     };
 
+    const handlePlayPreview = (data: any) => {
+        if (data.username !== useLobbyStore.getState().username) {
+            import('../audio/AudioEngine').then(m => m.engine.playPreview(data.trackId, data.pitch));
+        }
+    };
+
     const handleCursorMove = (data: any) => {
        if (data.username === useLobbyStore.getState().username) return;
        setCursors(prev => ({ ...prev, [data.username]: { x: data.x, y: data.y } }));
@@ -175,10 +181,19 @@ export default function Room() {
     };
     
     const handlePlayheadSync = (data: any) => {
+        const currentRoom = useLobbyStore.getState().room;
         if (useLobbyStore.getState().role === 'judge') {
              const targetWatching = useLobbyStore.getState().judgeWatching;
              if (targetWatching === data.username) {
-                  // Only sync if desynced by more than ~1/16th note (120 PPQ approx 100ms) to avoid jitter
+                  if (Math.abs(Tone.Transport.ticks - data.ticks) > 50) {
+                      engine.analyser?.context?.transport ? 
+                           (engine.analyser.context.transport.ticks = data.ticks) : 
+                           (Tone.Transport.ticks = data.ticks);
+                  }
+             }
+        } else if (currentRoom?.mode === 'multiplayer' && useLobbyStore.getState().role !== 'host') {
+             const hostUser = currentRoom.users.find(u => u.id === currentRoom.host);
+             if (hostUser?.username === data.username) {
                   if (Math.abs(Tone.Transport.ticks - data.ticks) > 50) {
                       engine.analyser?.context?.transport ? 
                            (engine.analyser.context.transport.ticks = data.ticks) : 
@@ -220,12 +235,14 @@ export default function Room() {
     socket.on('producer_state_update', handleStateUpdate);
     socket.on('playhead_sync', handlePlayheadSync);
     socket.on('ui_interaction', handleUiInteraction);
+    socket.on('play_preview', handlePlayPreview);
     socket.on('cursor_move', handleCursorMove);
     socket.on('join_rejected', handleJoinRejected);
     return () => { 
         socket.off('producer_state_update', handleStateUpdate); 
         socket.off('playhead_sync', handlePlayheadSync);
         socket.off('ui_interaction', handleUiInteraction);
+        socket.off('play_preview', handlePlayPreview);
         socket.off('cursor_move', handleCursorMove);
         socket.off('join_rejected', handleJoinRejected);
     };
@@ -338,7 +355,27 @@ export default function Room() {
   const isMatchActive = room.status === 'active';
 
   return (
-    <div className="h-screen w-screen flex flex-col font-sans select-none text-[11px] animation-fade-in" style={{ backgroundColor: 'var(--fl-bg-dark)' }}>
+    <div 
+       className="h-screen w-screen flex flex-col font-sans select-none text-[11px] animation-fade-in relative" 
+       style={{ backgroundColor: 'var(--fl-bg-dark)' }}
+       onMouseMove={(e) => {
+           if (role !== 'producer' && role !== 'host') return;
+           const t = Date.now();
+           if ((window as any).lastCursorEmit && t - (window as any).lastCursorEmit < 20) return;
+           (window as any).lastCursorEmit = t;
+           socket.emit('cursor_move', { roomId: id, username, x: e.clientX, y: e.clientY });
+       }}
+    >
+       {/* Global Multiplayer Cursors (Absolute to window) */}
+       {Object.entries(cursors).map(([uname, pos]) => (
+           <div key={uname} className="fixed pointer-events-none z-[99999]" style={{ left: `${pos.x}px`, top: `${pos.y}px`, transition: 'all 0.05s linear' }}>
+              <svg className="w-5 h-5 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" viewBox="0 0 24 24" fill="currentColor" stroke="black" strokeWidth="1.5" style={{ transform: 'rotate(-25deg)', transformOrigin: 'top left' }}>
+                 <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.42a.5.5 0 0 0 .35-.85L5.5 3.21Z" />
+              </svg>
+              <div className="absolute top-5 left-3 bg-[#FF7D2E] text-black text-[10px] font-black px-1.5 py-0.5 rounded-sm whitespace-nowrap shadow-xl border border-black/20 uppercase tracking-widest">{uname}</div>
+           </div>
+       ))}
+
       {/* FL Studio Top Toolbar */}
       <FlToolbar audioInited={audioInited} setAudioInited={setAudioInited} />
 
@@ -348,29 +385,8 @@ export default function Room() {
         <Browser />
 
         {/* Desktop Surface */}
-        <div 
-           className="flex-1 relative overflow-hidden bg-[var(--fl-bg-dark)]"
-           onMouseMove={(e) => {
-               if (role !== 'producer' && role !== 'host') return;
-               const rect = e.currentTarget.getBoundingClientRect();
-               const t = Date.now();
-               if ((window as any).lastCursorEmit && t - (window as any).lastCursorEmit < 20) return;
-               (window as any).lastCursorEmit = t;
-               const xPct = ((e.clientX - rect.left) / rect.width) * 100;
-               const yPct = ((e.clientY - rect.top) / rect.height) * 100;
-               socket.emit('cursor_move', { roomId: id, username, x: xPct, y: yPct });
-           }}
-        >
+        <div className="flex-1 relative overflow-hidden bg-[var(--fl-bg-dark)]">
            
-           {Object.entries(cursors).map(([uname, pos]) => (
-               <div key={uname} className="absolute pointer-events-none z-[9999]" style={{ left: `${pos.x}%`, top: `${pos.y}%`, transition: 'all 0.05s linear' }}>
-                  <svg className="w-5 h-5 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]" viewBox="0 0 24 24" fill="currentColor" stroke="black" strokeWidth="1.5" style={{ transform: 'rotate(-25deg)', transformOrigin: 'top left' }}>
-                     <path d="M5.5 3.21V20.8c0 .45.54.67.85.35l4.86-4.86a.5.5 0 0 1 .35-.15h6.42a.5.5 0 0 0 .35-.85L5.5 3.21Z" />
-                  </svg>
-                  <div className="absolute top-5 left-3 bg-[#FF7D2E] text-black text-[10px] font-black px-1.5 py-0.5 rounded-sm whitespace-nowrap shadow-xl border border-black/20 uppercase tracking-widest">{uname}</div>
-               </div>
-           ))}
-
            {role === 'judge' && (
               <div 
                  className="absolute inset-0 z-[300] cursor-not-allowed pointer-events-auto" 

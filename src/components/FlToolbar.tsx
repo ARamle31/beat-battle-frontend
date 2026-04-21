@@ -81,13 +81,15 @@ export default function FlToolbar({
   // Realtime Judge Synchronization Emitter
   useEffect(() => {
      if (!isPlaying || !isProducer || !room?.id) return;
+     if (room?.mode === 'multiplayer' && role !== 'host') return; // Host acts as master clock
+     
      const intervalId = setInterval(() => {
          import('../socket/socket').then(({ socket }) => {
              socket.emit('playhead_sync', { roomId: room.id, ticks: Tone.Transport.ticks });
          });
      }, 1000);
      return () => clearInterval(intervalId);
-  }, [isPlaying, isProducer, room?.id]);
+  }, [isPlaying, isProducer, room?.id, room?.mode, role]);
 
   // Master Volume and Pan native interactions
   const [masterVol, setMasterVol] = useState(0.8);

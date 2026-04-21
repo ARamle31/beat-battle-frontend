@@ -434,6 +434,7 @@ export default function PianoRoll() {
          if (!existingNote) {
             dawStore.commitHistory();
             engine.playPreview(selectedTrack.id, pitch);
+            if (room?.id) socket.emit('play_preview', { roomId: room.id, trackId: selectedTrack.id, pitch });
             addNote(selectedTrack.id, { id: `note-${Date.now()}-${Math.random()}`, pitch, time: step, duration: lastNoteDuration, velocity: 0.8 });
          }
       }
@@ -463,7 +464,9 @@ export default function PianoRoll() {
       
       if (pitchIndexOffset !== localDragDelta.pitchIndex) {
           const newPitchIndex = Math.max(0, Math.min(NOTES.length - 1, startDataValueY + pitchIndexOffset));
-          engine.playPreview(selectedTrack.id, NOTES[newPitchIndex]);
+          const newPitch = NOTES[newPitchIndex];
+          engine.playPreview(selectedTrack.id, newPitch);
+          if (room?.id) socket.emit('play_preview', { roomId: room.id, trackId: selectedTrack.id, pitch: newPitch });
       }
       
       setLocalDragDelta({ steps: stepsMoved, pitchIndex: pitchIndexOffset, dur: 0 });
