@@ -122,7 +122,7 @@ export default function Room() {
     // Explicitly join room if we navigated here via direct URL with LocalStorage initialized
     if (!room) {
         useLobbyStore.getState().setLobbyState({ roomId: id });
-        socket.emit('join_room', { roomId: id, role, username });
+        socket.emit('join_room', { roomId: id, role, username, mode: useLobbyStore.getState().matchMode });
     }
     
     const handleJoinRejected = (data: any) => {
@@ -246,7 +246,7 @@ export default function Room() {
         socket.off('cursor_move', handleCursorMove);
         socket.off('join_rejected', handleJoinRejected);
     };
-  }, [role, username, navigate, judgeWatching]);
+  }, [id, role, username, navigate, judgeWatching]);
 
   // Auto-spectate first producer if judge
   useEffect(() => {
@@ -340,7 +340,7 @@ export default function Room() {
               await import('../audio/AudioEngine').then(m => m.engine.init());
               setAudioInited(true);
               useLobbyStore.getState().setLobbyState({ roomId: id, username: directJoinUser, role: directJoinRole });
-              socket.emit('join_room', { roomId: id, role: directJoinRole, username: directJoinUser });
+              socket.emit('join_room', { roomId: id, role: directJoinRole, username: directJoinUser, mode: useLobbyStore.getState().matchMode });
            }} 
            className="w-full py-4 bg-white text-black font-black rounded-2xl hover:bg-slate-200 transition-all disabled:opacity-20 flex items-center justify-center gap-2"
          >
