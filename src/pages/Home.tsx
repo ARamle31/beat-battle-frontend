@@ -4,7 +4,7 @@ import { useLobbyStore } from '../store/useLobbyStore';
 import type { Role } from '../store/useLobbyStore';
 import { socket, initSocket } from '../socket/socket';
 import { 
-  Activity, Users, RefreshCw, Plus, Play, Radio, Fingerprint, Settings2
+  Activity, Users, Play, Radio, Fingerprint, Settings2
 } from 'lucide-react';
 
 export default function Home() {
@@ -50,28 +50,6 @@ export default function Home() {
     setTimeout(() => navigate(`/room/${targetRoomId}`), 400);
   };
 
-  const [showBoot, setShowBoot] = useState(!sessionStorage.getItem('ps2_boot_shown'));
-
-  useEffect(() => {
-    if (showBoot) {
-      sessionStorage.setItem('ps2_boot_shown', '1');
-      const timer = setTimeout(() => setShowBoot(false), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [showBoot]);
-
-  if (showBoot) {
-    return (
-      <div className="fixed inset-0 bg-[#0c0d10] z-[9999] flex flex-col items-center justify-center font-sans">
-         <div className="animate-studio-boot flex flex-col items-center gap-6">
-            <div className="w-16 h-16 rounded-full border-4 border-white border-t-transparent animate-spin opacity-20" />
-            <h1 className="text-white text-3xl font-black tracking-[0.5em] uppercase">BEAT BATTLE</h1>
-            <h2 className="text-white/40 text-xs font-bold tracking-[0.3em] uppercase">Audio Session Initialization</h2>
-         </div>
-      </div>
-    );
-  }
-
   const ConnectingOverlay = () => isConnecting ? (
     <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex flex-col items-center justify-center animation-fade-in">
        <div className="flex items-center gap-4 text-white">
@@ -86,9 +64,6 @@ export default function Home() {
       <>
         <ConnectingOverlay />
         <div className="min-h-screen bg-[#060709] text-white flex flex-col items-center justify-center p-6 relative font-sans animation-fade-in overflow-hidden">
-        {/* Subtle Ambient Glow */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#64B7EE] opacity-[0.03] blur-[120px] rounded-full pointer-events-none" />
-        
         <div className="relative z-10 w-full max-w-sm flex flex-col items-center">
             
             <div className="flex items-center justify-center space-x-3 mb-10">
@@ -130,10 +105,6 @@ export default function Home() {
       <ConnectingOverlay />
       <div className="min-h-screen bg-[#060709] text-white flex flex-col items-center py-10 px-6 lg:px-12 font-sans animation-fade-in selection:bg-[#64B7EE]/30 relative overflow-hidden">
       
-      {/* Background Ambience */}
-      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-indigo-500/5 blur-[150px] rounded-full pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-[#64B7EE] opacity-[0.03] blur-[150px] rounded-full pointer-events-none" />
-
       {/* Top Navigation / App Bar */}
       <div className="w-full max-w-6xl flex items-center justify-between z-10 mb-10 pb-6 border-b border-white/5">
          <div className="flex items-center space-x-4">

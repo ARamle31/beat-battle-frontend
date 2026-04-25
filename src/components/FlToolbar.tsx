@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useDawStore } from '../store/useDawStore';
 import { useLobbyStore } from '../store/useLobbyStore';
 import { engine } from '../audio/AudioEngine';
-import { Settings, RefreshCw, Scissors, Magnet, LayoutDashboard, Clock, FileAudio, ListMusic } from 'lucide-react';
+import { Magnet, ListMusic } from 'lucide-react';
 import * as Tone from 'tone';
+import { NETWORK_LEAD_MS, getNetworkStats, getServerNow, socket, subscribeNetworkStats } from '../socket/socket';
 
 export default function FlToolbar({ 
   audioInited, 
@@ -19,13 +20,34 @@ export default function FlToolbar({
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [cpuUsage, setCpuUsage] = useState(0);
+  const [networkStats, setNetworkStats] = useState(getNetworkStats());
 
   const togglePlayback = async () => {
     if (!audioInited) {
       await engine.init();
       setAudioInited(true);
     }
-    setIsPlaying(!isPlaying);
+    const nextIsPlaying = !isPlaying;
+    const ticks = Tone.Transport.ticks;
+    const serverStartAt = nextIsPlaying ? getServerNow() + NETWORK_LEAD_MS : getServerNow();
+
+    if (nextIsPlaying) {
+      engine.startTransport(ticks, NETWORK_LEAD_MS, bpm);
+    } else {
+      engine.stopTransport(useDawStore.getState().loopStart);
+    }
+
+    setIsPlaying(nextIsPlaying);
+
+    if (room?.id) {
+      socket.emit('transport_control', {
+        roomId: room.id,
+        action: nextIsPlaying ? 'play' : 'stop',
+        ticks,
+        bpm,
+        serverStartAt,
+      });
+    }
   };
   
   const formatTime = (seconds: number) => {
@@ -34,6 +56,8 @@ export default function FlToolbar({
     const s = seconds % 60;
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
+
+  useEffect(() => subscribeNetworkStats(setNetworkStats), []);
 
   // Oscilloscope drawing logic
   useEffect(() => {
@@ -70,26 +94,34 @@ export default function FlToolbar({
              ctx.stroke();
          }
 
-         setCpuUsage(Math.floor(Math.random() * 5) + (isPlaying ? 12 : 1)); // Mock CPU fluctuation based on play state
-         
          animationId = requestAnimationFrame(draw);
      };
      draw();
      return () => cancelAnimationFrame(animationId);
   }, [audioInited, isPlaying]);
 
+  useEffect(() => {
+     const intervalId = window.setInterval(() => {
+        setCpuUsage(Math.floor(Math.random() * 5) + (isPlaying ? 12 : 1));
+     }, 650);
+     return () => window.clearInterval(intervalId);
+  }, [isPlaying]);
+
   // Realtime Judge Synchronization Emitter
   useEffect(() => {
      if (!isPlaying || !isProducer || !room?.id) return;
      if (room?.mode === 'multiplayer' && role !== 'host') return; // Host acts as master clock
      
-     const intervalId = setInterval(() => {
-         import('../socket/socket').then(({ socket }) => {
-             socket.emit('playhead_sync', { roomId: room.id, ticks: Tone.Transport.ticks });
+     const intervalId = window.setInterval(() => {
+         socket.volatile.emit('playhead_sync', {
+           roomId: room.id,
+           ticks: Tone.Transport.ticks,
+           bpm,
+           serverSentAt: getServerNow(),
          });
-     }, 1000);
-     return () => clearInterval(intervalId);
-  }, [isPlaying, isProducer, room?.id, room?.mode, role]);
+     }, 250);
+     return () => window.clearInterval(intervalId);
+  }, [isPlaying, isProducer, room?.id, room?.mode, role, bpm]);
 
   // Master Volume and Pan native interactions
   const [masterVol, setMasterVol] = useState(0.8);
@@ -171,7 +203,7 @@ export default function FlToolbar({
         {/* Timer display on right side of menu */}
         <div className="text-[10px] flex items-center gap-2 pr-2 font-mono">
             <span className="text-[var(--fl-orange)] drop-shadow-[0_0_2px_var(--fl-orange)]">{room ? formatTime(room.matchTimeRemaining) : ''}</span>
-            <span className="text-[var(--fl-text)] tracking-widest">[{role.toUpperCase()}]</span>
+            <span className="text-[var(--fl-text)] tracking-widest">[{role ? role.toUpperCase() : 'GUEST'}]</span>
         </div>
       </div>
 
@@ -281,6 +313,7 @@ export default function FlToolbar({
 
         {/* CPU/Memory */}
         <div className="flex flex-col gap-[1px] items-end px-4 text-[var(--fl-text-bright)] font-mono text-[9px] font-bold opacity-70 border-l border-[#1b1f22] shadow-[-1px_0_0_rgba(255,255,255,0.03)] h-[32px] justify-center">
+           <div className="flex items-center gap-2"><span className="text-[var(--fl-text)] w-6 text-left">NET</span> <span className="w-10 text-right">{networkStats.synced ? networkStats.latencyMs : 0}</span><span className="text-[var(--fl-text)]">MS</span></div>
            <div className="flex items-center gap-2"><span className="text-[var(--fl-text)] w-6 text-left">RAM</span> <span className="w-10 text-right">{100 + Math.floor(cpuUsage * 0.5)}</span><span className="text-[var(--fl-text)]">MB</span></div>
            <div className="flex items-center gap-2"><span className="text-[var(--fl-text)] w-6 text-left">CPU</span> <span className="w-10 text-right">{cpuUsage}</span><span className="text-[var(--fl-text)]">%</span></div>
         </div>

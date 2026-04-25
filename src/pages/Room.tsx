@@ -2,8 +2,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useLobbyStore } from '../store/useLobbyStore';
 import { useDawStore } from '../store/useDawStore';
-import { socket, initSocket } from '../socket/socket';
-import { MousePointer2, Volume2 } from 'lucide-react';
+import { NETWORK_LEAD_MS, getServerNow, initSocket, socket } from '../socket/socket';
+import { Volume2 } from 'lucide-react';
 import ChannelSettings from '../components/ChannelSettings';
 import PianoRoll from '../components/PianoRoll';
 import FlToolbar from '../components/FlToolbar';
@@ -12,6 +12,23 @@ import Browser from '../components/Browser';
 import ChannelRack from '../components/ChannelRack';
 import { engine } from '../audio/AudioEngine';
 import * as Tone from 'tone';
+import { applyDawSnapshot, createDawSnapshot, type DawSnapshot } from '../store/networkState';
+
+type ProducerStateUpdate = {
+  producerId?: string;
+  username: string;
+  hasState: boolean;
+  state?: DawSnapshot;
+};
+
+type TransportControl = {
+  senderId?: string;
+  username: string;
+  action: 'play' | 'stop';
+  ticks?: number;
+  bpm?: number;
+  serverStartAt?: number;
+};
 
 export default function Room() {
   const { id } = useParams<{ id: string }>();
@@ -26,6 +43,8 @@ export default function Room() {
 
   const pianoRollWindowRef = useRef<HTMLDivElement>(null);
   const pianoRollPosRef = useRef({ x: 60, y: 280, w: 900, h: 480, isMaximized: false, storedX: 60, storedY: 280, storedW: 900, storedH: 480 });
+  const hasRestoredRef = useRef(false);
+  const judgeSnapshotsRef = useRef<Record<string, DawSnapshot>>({});
   // judgeWatching now globally managed via Zustand
 
   const handlePianoRollDrag = (e: React.MouseEvent) => {
@@ -118,6 +137,23 @@ export default function Room() {
   useEffect(() => {
     initSocket();
     if (!role || !username || !id) return;
+
+    const shouldApplyProducerEvent = (producerUsername: string) => {
+        const lobby = useLobbyStore.getState();
+        const currentRoom = lobby.room;
+        if (lobby.role === 'judge') return lobby.judgeWatching === producerUsername;
+        if (currentRoom?.status === 'voting') {
+            return currentRoom.showcaseQueue?.[currentRoom.showcaseIndex || 0] === producerUsername;
+        }
+        return currentRoom?.mode === 'multiplayer';
+    };
+
+    const applyNetworkSnapshot = (snapshot: DawSnapshot) => {
+        applyDawSnapshot({
+            ...snapshot,
+            isPlaying: useDawStore.getState().isPlaying,
+        });
+    };
     
     // Recover securely if the socket restarts via HMR or Ping timeout
     const handleConnect = () => {
@@ -129,72 +165,83 @@ export default function Room() {
     socket.on('connect', handleConnect);
 
     // Explicitly join room if we navigated here via direct URL with LocalStorage initialized
-    if (!room) {
+    if (!useLobbyStore.getState().room) {
         useLobbyStore.getState().setLobbyState({ roomId: id });
         socket.emit('join_room', { roomId: id, role, username, mode: useLobbyStore.getState().matchMode });
     }
     
-    const handleJoinRejected = (data: any) => {
+    const handleJoinRejected = (data: { reason?: string }) => {
         alert(data.reason || 'Cannot join match.');
         useLobbyStore.getState().reset();
         navigate('/');
     };
 
-    const handlePlayPreview = (data: any) => {
-        if (data.senderId !== socket.id) {
-            import('../audio/AudioEngine').then(m => m.engine.playPreview(data.trackId, data.pitch));
+    const handlePlayPreview = (data: { senderId?: string; username: string; trackId: string; pitch: string }) => {
+        if (data.senderId !== socket.id && shouldApplyProducerEvent(data.username)) {
+            engine.playPreview(data.trackId, data.pitch);
         }
     };
     
     // Bind socket persistence sync for Judges and recovering Producers
-    const handleStateUpdate = (data: any) => {
+    const handleStateUpdate = (data: ProducerStateUpdate) => {
         const isMe = socket.id === data.producerId;
-        const currentRoom = useLobbyStore.getState().room;
         
-        if (isMe && !(window as any).hasRestored) {
-            (window as any).hasRestored = true;
+        if (isMe && !hasRestoredRef.current) {
+            hasRestoredRef.current = true;
             if (data.hasState && data.state) {
-                data.state.isChannelRackOpen = true; 
-                useDawStore.setState(data.state);
+                (window as any).__beatBattleIncoming = true;
+                applyNetworkSnapshot({ ...data.state, isChannelRackOpen: true });
             }
             return;
         }
 
-        const role = useLobbyStore.getState().role;
-        const isShowcaseTarget = currentRoom?.status === 'voting' && currentRoom?.showcaseQueue?.[currentRoom.showcaseIndex || 0] === data.username;
-        
-        if (role === 'judge') {
-            if (!(window as any).judgeMap) (window as any).judgeMap = {};
-            if (data.hasState && data.state) (window as any).judgeMap[data.username] = data.state;
-            const targetWatching = judgeWatching || data.username;
-            if (!judgeWatching) setJudgeWatching(data.username);
-            if (targetWatching === data.username) useDawStore.setState(data.state);
-        } else if (isShowcaseTarget && !isMe) {
-            // Lock all users into viewing the target
-            if (data.hasState && data.state) {
-                useDawStore.setState(data.state);
+        if (!data.hasState || !data.state) return;
+
+        const lobby = useLobbyStore.getState();
+        if (lobby.role === 'judge') {
+            judgeSnapshotsRef.current[data.username] = data.state;
+            const targetWatching = lobby.judgeWatching || data.username;
+            if (!lobby.judgeWatching) setJudgeWatching(data.username);
+            if (targetWatching === data.username) {
+                (window as any).__beatBattleIncoming = true;
+                applyNetworkSnapshot(data.state);
             }
-        } else if (currentRoom?.mode === 'multiplayer' && !isMe) {
-            if (data.hasState && data.state) {
-                const localHistory = useDawStore.getState().history;
-                const localFuture = useDawStore.getState().future;
-                (window as any).isIncomingNetworkUpdate = true;
-                useDawStore.setState({ ...data.state, history: localHistory, future: localFuture });
-            }
+            return;
+        }
+
+        if (!isMe && shouldApplyProducerEvent(data.username)) {
+            (window as any).__beatBattleIncoming = true;
+            applyNetworkSnapshot(data.state);
         }
     };
     
-    const handlePlayheadSync = (data: any) => {
-        const currentRoom = useLobbyStore.getState().room;
-        if (useLobbyStore.getState().role === 'judge') {
-             const targetWatching = useLobbyStore.getState().judgeWatching;
-             if (targetWatching === data.username) {
-                  if (Math.abs(Tone.Transport.ticks - data.ticks) > 50) {
-                      engine.analyser?.context?.transport ? 
-                           (engine.analyser.context.transport.ticks = data.ticks) : 
-                           (Tone.Transport.ticks = data.ticks);
-                  }
-             }
+    const handlePlayheadSync = (data: { username: string; ticks: number; bpm?: number; serverSentAt?: number }) => {
+        if (!shouldApplyProducerEvent(data.username)) return;
+
+        let targetTicks = data.ticks;
+        if (data.serverSentAt && data.bpm) {
+            const elapsedSeconds = Math.max(0, (getServerNow() - data.serverSentAt) / 1000);
+            targetTicks += elapsedSeconds * Tone.Transport.PPQ * (data.bpm / 60);
+        }
+
+        if (Math.abs(Tone.Transport.ticks - targetTicks) > 36) {
+            Tone.Transport.ticks = targetTicks;
+        }
+    };
+
+    const handleTransportControl = (data: TransportControl) => {
+        if (data.senderId === socket.id || !shouldApplyProducerEvent(data.username)) return;
+        const ticks = data.ticks ?? 0;
+
+        if (data.action === 'play') {
+            const delayMs = Math.max(0, (data.serverStartAt ?? getServerNow()) - getServerNow());
+            engine.startTransport(ticks, delayMs, data.bpm);
+            (window as any).__beatBattleIncoming = true;
+            useDawStore.setState({ isPlaying: true, bpm: data.bpm ?? useDawStore.getState().bpm });
+        } else {
+            engine.stopTransport(useDawStore.getState().loopStart);
+            (window as any).__beatBattleIncoming = true;
+            useDawStore.setState({ isPlaying: false });
         }
     };
     
@@ -229,6 +276,7 @@ export default function Room() {
     
     socket.on('producer_state_update', handleStateUpdate);
     socket.on('playhead_sync', handlePlayheadSync);
+    socket.on('transport_control', handleTransportControl);
     socket.on('ui_interaction', handleUiInteraction);
     socket.on('play_preview', handlePlayPreview);
     socket.on('join_rejected', handleJoinRejected);
@@ -236,11 +284,14 @@ export default function Room() {
         socket.off('connect', handleConnect);
         socket.off('producer_state_update', handleStateUpdate); 
         socket.off('playhead_sync', handlePlayheadSync);
+        socket.off('transport_control', handleTransportControl);
         socket.off('ui_interaction', handleUiInteraction);
         socket.off('play_preview', handlePlayPreview);
         socket.off('join_rejected', handleJoinRejected);
     };
-  }, [id, role, username, navigate, judgeWatching]);
+  // The handlers read live lobby state through Zustand; rebinding them on every window drag would add jitter.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, role, username, navigate, setJudgeWatching]);
 
   // Auto-spectate first producer if judge
   useEffect(() => {
@@ -248,8 +299,11 @@ export default function Room() {
         const producers = room.users.filter(u => u.role === 'producer' || u.role === 'host');
         if (producers.length > 0 && !judgeWatching) {
             setJudgeWatching(producers[0].username);
-            if ((window as any).judgeMap?.[producers[0].username]) {
-                useDawStore.setState((window as any).judgeMap[producers[0].username]);
+            if (judgeSnapshotsRef.current[producers[0].username]) {
+                applyDawSnapshot({
+                    ...judgeSnapshotsRef.current[producers[0].username],
+                    isPlaying: useDawStore.getState().isPlaying,
+                });
             }
         }
      }
@@ -258,17 +312,41 @@ export default function Room() {
   // Bind outgoing daw_state_update
   useEffect(() => {
     if (!isProducer || !id) return;
-    return useDawStore.subscribe((state, prevState) => {
-       if ((window as any).isIncomingNetworkUpdate) {
-           (window as any).isIncomingNetworkUpdate = false;
+    let latestSnapshot: DawSnapshot | null = null;
+    let flushTimer: number | null = null;
+    let lastEmitAt = 0;
+
+    const flushSnapshot = () => {
+       flushTimer = null;
+       if (!latestSnapshot) return;
+       socket.emit('daw_state_update', { roomId: id, state: latestSnapshot, clientSentAt: Date.now() });
+       latestSnapshot = null;
+       lastEmitAt = performance.now();
+    };
+
+    const unsubscribe = useDawStore.subscribe((state, prevState) => {
+       if ((window as any).__beatBattleIncoming) {
+           (window as any).__beatBattleIncoming = false;
            return;
        }
 
-       // Filter out playhead position from causing massive 60FPS web socket floods
        const changedKeys = Object.keys(state).filter(k => state[k as keyof typeof state] !== prevState[k as keyof typeof state]);
-       if (changedKeys.length === 0 || (changedKeys.length === 1 && changedKeys[0] === 'playheadPosition')) return;
-       socket.emit('daw_state_update', { roomId: id, state });
+       const syncKeys = changedKeys.filter(key => !['playheadPosition', 'history', 'future'].includes(key));
+       if (syncKeys.length === 0) return;
+
+       latestSnapshot = createDawSnapshot(state);
+       const elapsed = performance.now() - lastEmitAt;
+       if (elapsed >= 32) {
+          flushSnapshot();
+       } else if (flushTimer === null) {
+          flushTimer = window.setTimeout(flushSnapshot, 32 - elapsed);
+       }
     });
+
+    return () => {
+       unsubscribe();
+       if (flushTimer !== null) window.clearTimeout(flushTimer);
+    };
   }, [isProducer, id]);
 
   // Global Keybinds
@@ -280,7 +358,27 @@ export default function Room() {
              await engine.init();
              setAudioInited(true);
            }
-           useDawStore.getState().setIsPlaying(!useDawStore.getState().isPlaying);
+           const state = useDawStore.getState();
+           const nextIsPlaying = !state.isPlaying;
+           const ticks = Tone.Transport.ticks;
+           const serverStartAt = nextIsPlaying ? getServerNow() + NETWORK_LEAD_MS : getServerNow();
+
+           if (nextIsPlaying) {
+             engine.startTransport(ticks, NETWORK_LEAD_MS, state.bpm);
+           } else {
+             engine.stopTransport(state.loopStart);
+           }
+
+           state.setIsPlaying(nextIsPlaying);
+           if (id && isProducer) {
+             socket.emit('transport_control', {
+               roomId: id,
+               action: nextIsPlaying ? 'play' : 'stop',
+               ticks,
+               bpm: state.bpm,
+               serverStartAt,
+             });
+           }
         }
 
         if (useLobbyStore.getState().role === 'judge' && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) {
@@ -296,23 +394,16 @@ export default function Room() {
            const nextUser = validUsers[nextIdx];
            if (nextUser) {
                useLobbyStore.getState().setJudgeWatching(nextUser.username);
-               import('../socket/socket').then(({ socket }) => socket.emit('request_state_sync', { roomId: id, targetUsername: nextUser.username }));
+               socket.emit('request_state_sync', { roomId: id, targetUsername: nextUser.username });
            }
         }
      };
      window.addEventListener('keydown', handleKeyDown);
      return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [audioInited]);
+  }, [audioInited, id, isProducer]);
 
   const handleStartMatch = () => {
     if (role === 'host' && id) socket.emit('start_match', { roomId: id, duration: useLobbyStore.getState().matchDuration });
-  };
-
-  const handleSyncAudio = async () => {
-    if (!audioInited) {
-      await engine.init();
-      setAudioInited(true);
-    }
   };
 
   if (!role || !username) return (
@@ -333,7 +424,7 @@ export default function Room() {
          <button 
            disabled={!directJoinUser}
            onClick={async () => {
-              await import('../audio/AudioEngine').then(m => m.engine.init());
+              await engine.init();
               setAudioInited(true);
               useLobbyStore.getState().setLobbyState({ roomId: id, username: directJoinUser, role: directJoinRole });
               socket.emit('join_room', { roomId: id, role: directJoinRole, username: directJoinUser, mode: useLobbyStore.getState().matchMode });
@@ -387,21 +478,6 @@ export default function Room() {
               <h1 className="text-[140px] font-black italic tracking-tighter text-white drop-shadow-2xl">FL STUDIO</h1>
            </div>
 
-           {/* Cursors */}
-           {Object.entries(cursors).map(([uName, pos]) => {
-                const isActiveTarget = room?.showcaseQueue?.[room.showcaseIndex || 0] === uName || judgeWatching === uName;
-                if (!isActiveTarget && role === 'judge') return null;
-                
-                return (
-                   <div key={uName} className="absolute z-[600] pointer-events-none transition-all duration-75 ease-linear" style={{ transform: `translate(${pos.x}px, ${pos.y}px)` }}>
-                      <MousePointer2 className="w-5 h-5 text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] fill-white -ml-1 -mt-1" />
-                      <div className="bg-[#ff7d2e] text-black font-black uppercase text-[9px] px-1.5 py-0.5 rounded-sm shadow-md translate-y-1">
-                         {uName}
-                      </div>
-                   </div>
-                );
-            })}
-
            {/* Overlays */}
            {role === 'judge' && room.users.some(u => u.role !== 'judge') && (
                <>
@@ -426,7 +502,7 @@ export default function Room() {
                                const nextUser = validUsers[nextIdx];
                                if (nextUser) {
                                    setJudgeWatching(nextUser.username);
-                                   import('../socket/socket').then(({ socket }) => socket.emit('request_state_sync', { roomId: id, targetUsername: nextUser.username }));
+                                   socket.emit('request_state_sync', { roomId: id, targetUsername: nextUser.username });
                                }
                            }}
                        >
@@ -444,7 +520,7 @@ export default function Room() {
                                const nextUser = validUsers[nextIdx];
                                if (nextUser) {
                                    setJudgeWatching(nextUser.username);
-                                   import('../socket/socket').then(({ socket }) => socket.emit('request_state_sync', { roomId: id, targetUsername: nextUser.username }));
+                                   socket.emit('request_state_sync', { roomId: id, targetUsername: nextUser.username });
                                }
                            }}
                        >
@@ -513,7 +589,7 @@ export default function Room() {
                        <button className="fl-button px-6 py-2 mt-2 font-black uppercase text-sm animate-pulse shadow-[0_0_15px_var(--fl-green)]"
                                onClick={(e) => { 
                                     e.stopPropagation();
-                                    import('../socket/socket').then(({ socket }) => socket.emit('end_showcase_turn', { roomId: id, username })); 
+                                    socket.emit('end_showcase_turn', { roomId: id, username });
                                }}>
                            End My Turn
                        </button>
@@ -536,7 +612,7 @@ export default function Room() {
                                        <button 
                                           className={`px-8 py-6 rounded border-2 transition-all font-black text-2xl uppercase tracking-widest ${room.votes?.[useLobbyStore.getState().username] === prod ? 'border-green-500 bg-green-500/20 text-white shadow-[0_0_20px_green]' : 'border-[#445] bg-[#111] text-gray-300 hover:border-[#ff7d2e] hover:text-[#ff7d2e]'}`}
                                           disabled={hasVoted}
-                                          onClick={() => import('../socket/socket').then(({ socket }) => socket.emit('submit_vote', { roomId: id, fromUsername: useLobbyStore.getState().username, forUsername: prod }))}
+                                          onClick={() => socket.emit('submit_vote', { roomId: id, fromUsername: useLobbyStore.getState().username, forUsername: prod })}
                                        >
                                            {prod}
                                        </button>

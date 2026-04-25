@@ -22,7 +22,7 @@ const CELL_HEIGHT = 16; // Thinner to fit more octaves smoothly
 export default function PianoRoll() {
   const { 
     tracks, selectedTrackId, addNote, removeNote, updateNote, 
-    playheadPosition, loopStart, loopEnd, setLoopPoints,
+    loopStart, loopEnd, setLoopPoints,
     snapInterval, setSnapInterval, lastNoteDuration, setLastNoteDuration
   } = useDawStore();
   const { role, room, username } = useLobbyStore();
@@ -35,7 +35,7 @@ export default function PianoRoll() {
 
   const [activeTool, setActiveTool] = useState(0);
 
-  const [dragAction, setDragAction] = useState<'move' | 'resize' | 'paint' | 'loop' | null>(null);
+  const [dragAction, setDragAction] = useState<'move' | 'resize' | 'paint' | 'loop' | 'lasso' | null>(null);
   const [dragTargetId, setDragTargetId] = useState<string | null>(null);
   
   const [startMouseX, setStartMouseX] = useState(0);
@@ -49,7 +49,6 @@ export default function PianoRoll() {
   // Lasso Selection State
   const [selectedNoteIds, setSelectedNoteIds] = useState<string[]>([]);
   const [lassoBox, setLassoBox] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
-  const [lassoStart, setLassoStart] = useState({ x: 0, y: 0 });
   
   const [showStrumizer, setShowStrumizer] = useState(false);
   const [strumTimeOffset, setStrumTimeOffset] = useState(0.125);
@@ -224,12 +223,6 @@ export default function PianoRoll() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isProducer, isMatchActive, selectedNoteIds, selectedTrackId]);
 
-  useEffect(() => {
-    if (isProducer && isMatchActive && (window as any).hasRestored) {
-      socket.emit('daw_state_update', { roomId: useLobbyStore.getState().roomId, state: useDawStore.getState() });
-    }
-  }, [dawStore.tracks, dawStore.bpm, dawStore.isPlaying, dawStore.loopStart, dawStore.loopEnd, isProducer, isMatchActive]);
-
   if (!selectedTrack) {
     return <div className="h-full flex items-center justify-center text-[#ff7d2e] font-bold">Select an instrument to open Piano Roll</div>;
   }
@@ -267,7 +260,6 @@ export default function PianoRoll() {
         const innerTopStart = e.clientY - rect.top + gridContainerRef.current!.scrollTop;
         
         setDragAction('lasso');
-        setLassoStart({ x: innerLeftStart, y: innerTopStart });
         setLassoBox({ x: innerLeftStart, y: innerTopStart, w: 0, h: 0 });
         
         // Setup direct Window drag captures for flawless selection tracking regardless of DOM boundaries
@@ -332,6 +324,9 @@ export default function PianoRoll() {
     
     const pitch = NOTES[pitchIndex];
     if (activeTool === 0 || activeTool === 1) engine.playPreview(selectedTrack.id, pitch);
+    if ((activeTool === 0 || activeTool === 1) && room?.id) {
+      socket.emit('play_preview', { roomId: room.id, trackId: selectedTrack.id, pitch });
+    }
 
     const newNote = {
       id: `note-${Date.now()}-${Math.random()}`,
@@ -376,6 +371,7 @@ export default function PianoRoll() {
     }
     
     engine.playPreview(selectedTrack.id, note.pitch);
+    if (room?.id) socket.emit('play_preview', { roomId: room.id, trackId: selectedTrack.id, pitch: note.pitch });
 
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const isRightEdge = e.clientX > rect.right - 10;
@@ -590,7 +586,7 @@ export default function PianoRoll() {
           {/* Note Grid */}
           <div className="flex-1 overflow-auto relative custom-scrollbar bg-[var(--fl-grid-dark)]" ref={gridContainerRef} onScroll={handleGridScroll}>
             <div className="absolute top-0 left-0 flex flex-col pointer-events-none" style={{ width: STEPS * CELL_WIDTH, height: NOTES.length * CELL_HEIGHT }}>
-               {NOTES.map((note, idx) => {
+               {NOTES.map((note) => {
                   const intervalTicks = snapInterval > 0 && snapInterval < 1 ? snapInterval : 1;
                   const pxPerLine = intervalTicks * CELL_WIDTH;
                   const linesPerBeat = Math.round(4 / intervalTicks);

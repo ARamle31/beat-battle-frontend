@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { useDawStore } from '../store/useDawStore';
 import { useLobbyStore } from '../store/useLobbyStore';
+import { socket } from '../socket/socket';
 
 export default function ChannelSettings() {
   const { tracks, updateTrack, selectedTrackId, activeWindow, setActiveWindow } = useDawStore();
@@ -71,9 +72,7 @@ export default function ChannelSettings() {
          window.removeEventListener('mousemove', handleMove); 
          window.removeEventListener('mouseup', handleUp); 
          if (isProducer && room?.id) {
-             import('../socket/socket').then(({ socket }) => {
-                  socket.emit('ui_interaction', { roomId: room.id, type: 'channel_settings_pos', value: posRef.current });
-             });
+             socket.emit('ui_interaction', { roomId: room.id, type: 'channel_settings_pos', value: posRef.current });
          }
      };
      window.addEventListener('mousemove', handleMove);
@@ -82,9 +81,15 @@ export default function ChannelSettings() {
 
   React.useEffect(() => {
      const handleUiInteraction = (data: any) => {
-         if (role === 'judge') {
-              const targetWatching = useLobbyStore.getState().judgeWatching;
-              if (targetWatching === data.username && data.type === 'channel_settings_pos') {
+         if (data.senderId === socket.id) return;
+         const currentRoom = useLobbyStore.getState().room;
+         const targetWatching = useLobbyStore.getState().judgeWatching;
+         const shouldApply =
+            (role === 'judge' && targetWatching === data.username) ||
+            currentRoom?.mode === 'multiplayer';
+
+         if (shouldApply) {
+              if (data.type === 'channel_settings_pos') {
                   posRef.current = data.value;
                   if (windowRef.current) {
                       windowRef.current.style.left = `${data.value.x}px`;
@@ -93,13 +98,9 @@ export default function ChannelSettings() {
               }
          }
      };
-     import('../socket/socket').then(({ socket }) => {
-         socket.on('ui_interaction', handleUiInteraction);
-     });
+     socket.on('ui_interaction', handleUiInteraction);
      return () => {
-         import('../socket/socket').then(({ socket }) => {
-             socket.off('ui_interaction', handleUiInteraction);
-         });
+         socket.off('ui_interaction', handleUiInteraction);
      };
   }, [role]);
 

@@ -5,6 +5,7 @@ class AudioEngine {
   private instruments: Map<string, Tone.PolySynth | Tone.Sampler> = new Map();
   private parts: Map<string, Tone.Part> = new Map();
   private initialized = false;
+  private suppressStoreTransportUntil = 0;
   
   public analyser: Tone.Analyser;
 
@@ -14,7 +15,7 @@ class AudioEngine {
 
   async init() {
     if (this.initialized) return;
-    Tone.setContext(new Tone.Context({ latencyHint: 'interactive', lookAhead: 0.05 }));
+    Tone.setContext(new Tone.Context({ latencyHint: 'interactive', lookAhead: 0.025 }));
     await Tone.start();
     Tone.Transport.bpm.value = useDawStore.getState().bpm;
     
@@ -42,7 +43,7 @@ class AudioEngine {
     }).toDestination();
     this.metronomeSynth.volume.value = -8; 
 
-    this.metronomeEventId = Tone.Transport.scheduleRepeat((time) => {
+    Tone.Transport.scheduleRepeat((time) => {
        if (this.isMetronomeOn && this.metronomeSynth) {
           // Play a slightly higher tick on the downbeat (tick 0 of the measure)
           const currentTick = Math.round(Tone.Transport.ticks);
@@ -54,7 +55,6 @@ class AudioEngine {
   }
 
   private metronomeSynth: Tone.Synth | null = null;
-  private metronomeEventId: number | null = null;
   private isMetronomeOn = false;
 
   public setMetronome(state: boolean) {
@@ -62,7 +62,7 @@ class AudioEngine {
   }
 
   private updateLoopPoints(start: number, end: number, active: boolean) {
-     if (active) {
+    if (active) {
         Tone.Transport.setLoopPoints({ '16n': start }, { '16n': end });
         Tone.Transport.loop = true;
      } else {
@@ -74,19 +74,12 @@ class AudioEngine {
     if (!this.initialized) return;
 
     if (state.isPlaying !== prevState.isPlaying) {
-      if (state.isPlaying) {
-        Tone.Transport.start();
-      } else {
-        Tone.Transport.stop();
-        Tone.Transport.position = state.loopStart * Tone.Time("16n").toSeconds();
-        state.setPlayheadPosition(state.loopStart);
-        
-        // Let instruments smoothly decay based on their set release envelope
-        this.instruments.forEach(inst => {
-            if (inst instanceof Tone.PolySynth || inst instanceof Tone.Sampler) {
-                 inst.releaseAll(Tone.now());
-            }
-        });
+      if (performance.now() > this.suppressStoreTransportUntil) {
+        if (state.isPlaying) {
+          this.startTransport(Tone.Transport.ticks, 0, state.bpm);
+        } else {
+          this.stopTransport(state.loopStart);
+        }
       }
     }
 
@@ -101,6 +94,20 @@ class AudioEngine {
     if (state.loopStart !== prevState.loopStart || state.loopEnd !== prevState.loopEnd || state.loopActive !== prevState.loopActive) {
        this.updateLoopPoints(state.loopStart, state.loopEnd, state.loopActive);
     }
+
+    const activeTrackIds = new Set(state.tracks.map((track: any) => track.id));
+    this.parts.forEach((part, trackId) => {
+      if (!activeTrackIds.has(trackId)) {
+        part.dispose();
+        this.parts.delete(trackId);
+      }
+    });
+    this.instruments.forEach((instrument, trackId) => {
+      if (!activeTrackIds.has(trackId)) {
+        instrument.dispose();
+        this.instruments.delete(trackId);
+      }
+    });
 
     state.tracks.forEach((track: any) => {
       const prevTrack = prevState?.tracks?.find((t: any) => t.id === track.id);
@@ -134,7 +141,7 @@ class AudioEngine {
 
       const instrument = this.instruments.get(track.id)!;
       
-      instrument.volume.value = Tone.gainToDb(track.volume);
+      instrument.volume.value = track.volume <= 0 ? -Infinity : Tone.gainToDb(track.volume);
       
       if (instrument instanceof Tone.PolySynth) {
         instrument.set({
@@ -154,10 +161,7 @@ class AudioEngine {
       if (!prevTrack || prevTrack.notes !== track.notes || shouldRecreate) {
           if (this.parts.has(track.id)) {
             this.parts.get(track.id)!.dispose();
-          }
-
-          if ((this as any)[`part_${track.id}`]) {
-             (this as any)[`part_${track.id}`].dispose();
+            this.parts.delete(track.id);
           }
 
           const partEvents = track.notes.map((note: any) => {
@@ -174,9 +178,29 @@ class AudioEngine {
           }, partEvents).start(0);
 
           part.loop = false; // We use Transport loop
-          (this as any)[`part_${track.id}`] = part;
+          this.parts.set(track.id, part);
       }
     });
+  }
+
+  public startTransport(ticks = Tone.Transport.ticks, delayMs = 0, bpm?: number) {
+     if (!this.initialized) return;
+     this.suppressStoreTransportUntil = performance.now() + delayMs + 160;
+     if (typeof bpm === 'number') Tone.Transport.bpm.value = bpm;
+     Tone.Transport.ticks = Math.max(0, ticks);
+     Tone.Transport.start(`+${Math.max(0, delayMs) / 1000}`);
+  }
+
+  public stopTransport(loopStart = useDawStore.getState().loopStart) {
+     if (!this.initialized) return;
+     this.suppressStoreTransportUntil = performance.now() + 160;
+     Tone.Transport.stop();
+     Tone.Transport.ticks = Math.max(0, loopStart * (Tone.Transport.PPQ / 4));
+     useDawStore.getState().setPlayheadPosition(loopStart);
+
+     this.instruments.forEach(inst => {
+        inst.releaseAll(Tone.now());
+     });
   }
 
   // Method to play a specific sound via UI bypass (for Piano keys)

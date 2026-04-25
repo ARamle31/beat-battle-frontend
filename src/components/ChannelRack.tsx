@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useDawStore } from '../store/useDawStore';
 import { useLobbyStore } from '../store/useLobbyStore';
+import { socket } from '../socket/socket';
 
 import * as Tone from 'tone';
 
@@ -13,6 +14,7 @@ export default function ChannelRack() {
   const isProducer = (role === 'producer' || role === 'host') && isMatchActive;
 
   const STEPS = 16;
+  const [activeStep, setActiveStep] = useState<number | null>(null);
 
   const toggleStep = (trackId: string, step: number) => {
     if (!isProducer || !isMatchActive) return;
@@ -34,26 +36,18 @@ export default function ChannelRack() {
 
   useEffect(() => {
      let afId: number;
+     let lastStep: number | null = null;
      const drawPlayhead = () => {
+         let nextStep: number | null = null;
          if (dawStore.isPlaying) {
              const ticks = Tone.Transport.ticks;
              const ticksPer16th = Tone.Transport.PPQ / 4; 
              const pos = ticks / ticksPer16th;
-             const activeStep = Math.floor(pos) % STEPS;
-             
-             for(let i = 0; i < STEPS; i++) {
-                 const elements = document.querySelectorAll(`[id^="step-overlay-${i}-"]`);
-                 elements.forEach(el => {
-                     (el as HTMLElement).style.opacity = i === activeStep ? '1' : '0';
-                 });
-             }
-         } else {
-             for(let i = 0; i < STEPS; i++) {
-                 const elements = document.querySelectorAll(`[id^="step-overlay-${i}-"]`);
-                 elements.forEach(el => {
-                     (el as HTMLElement).style.opacity = '0';
-                 });
-             }
+             nextStep = Math.floor(pos) % STEPS;
+         }
+         if (nextStep !== lastStep) {
+             lastStep = nextStep;
+             setActiveStep(nextStep);
          }
          afId = requestAnimationFrame(drawPlayhead);
      };
@@ -133,9 +127,7 @@ export default function ChannelRack() {
         window.removeEventListener('mousemove', handleMove);
         window.removeEventListener('mouseup', handleUp);
         if (isProducer && room?.id) {
-            import('../socket/socket').then(({ socket }) => {
-                 socket.emit('ui_interaction', { roomId: room.id, type: 'channel_rack_pos', value: posRef.current });
-            });
+            socket.emit('ui_interaction', { roomId: room.id, type: 'channel_rack_pos', value: posRef.current });
         }
      };
 
@@ -146,7 +138,7 @@ export default function ChannelRack() {
   useEffect(() => {
      const handleUiInteraction = (data: any) => {
          const currentRoom = useLobbyStore.getState().room;
-         const isMe = data.username === useLobbyStore.getState().username;
+         const isMe = data.senderId === socket.id || data.username === useLobbyStore.getState().username;
          if (isMe) return;
 
          let shouldApply = false;
@@ -169,13 +161,9 @@ export default function ChannelRack() {
               }
          }
      };
-     import('../socket/socket').then(({ socket }) => {
-         socket.on('ui_interaction', handleUiInteraction);
-     });
+     socket.on('ui_interaction', handleUiInteraction);
      return () => {
-         import('../socket/socket').then(({ socket }) => {
-             socket.off('ui_interaction', handleUiInteraction);
-         });
+         socket.off('ui_interaction', handleUiInteraction);
      };
   }, [role]);
 
@@ -191,7 +179,7 @@ export default function ChannelRack() {
          const t = setTimeout(() => setShouldRender(false), 300);
          return () => clearTimeout(t);
      }
-  }, [isChannelRackOpen]);
+  }, [isChannelRackOpen, shouldRender]);
 
   if (!shouldRender && !isChannelRackOpen) {
       return (
@@ -278,7 +266,7 @@ export default function ChannelRack() {
                              className={`step-item cursor-pointer flex items-end justify-center pb-[1px] ${stepClass} relative overflow-hidden`}
                              onClick={() => toggleStep(track.id, i * 0.25)}
                            >
-                             <div id={`step-overlay-${i}-${track.id}`} className="absolute inset-0 bg-[#e7ecef]/20 pointer-events-none transition-opacity duration-75 opacity-0" />
+                             <div className={`absolute inset-0 bg-[#e7ecef]/20 pointer-events-none transition-opacity duration-75 ${activeStep === i ? 'opacity-100' : 'opacity-0'}`} />
                            </div>
                         );
                      })}

@@ -1,20 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  /* FL Studio 20/21/24 Authentic Dark Vector Theme */
-  --fl-bg-dark: #2F3539; 
-  --fl-panel-bg: #374148;
+  /* Producer-first studio theme: dense, legible, low-glare */
+  --fl-bg-dark: #262b2e;
+  --fl-panel-bg: #323b40;
   --fl-panel-border: #141618;
-  --fl-header: #4A5661;
+  --fl-header: #46525a;
   --fl-text: #96A8B3;
   --fl-text-bright: #CBDCE6;
   --fl-orange: #FF7D2E;
   --fl-green: #7DE85D;
-  --fl-blue: #64B7EE;
+  --fl-blue: #58b8d8;
   
-  --fl-grid-dark: #22272A;
-  --fl-grid-light: #2A3035;
-  --fl-border: #171A1C;
+  --fl-grid-dark: #1f2426;
+  --fl-grid-light: #293034;
+  --fl-border: #121517;
   
   --fl-step-gray: #424D56;
   --fl-step-dark: #374148;
@@ -32,6 +32,17 @@ body {
   font-size: 11px;
   user-select: none;
   -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  touch-action: manipulation;
 }
 
 ::-webkit-scrollbar {
@@ -55,8 +66,9 @@ body {
   background-color: var(--fl-panel-bg);
   border: 1px solid #576570;
   outline: 1px solid var(--fl-border);
-  box-shadow: 6px 6px 20px rgba(0,0,0,0.6);
+  box-shadow: 5px 8px 18px rgba(0,0,0,0.55);
   border-radius: 3px;
+  contain: layout paint;
 }
 
 .fl-window-header {
@@ -107,6 +119,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 0;
 }
 .fl-button:active, .fl-button.active {
   background: #363E44;
@@ -155,6 +168,7 @@ body {
   border-top: 1px solid #A1F884;
   border-radius: 2px;
   box-sizing: border-box;
+  will-change: left, top, width;
 }
 .fl-note:hover {
   filter: brightness(1.15);
