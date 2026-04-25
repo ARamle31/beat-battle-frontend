@@ -27,8 +27,23 @@ export interface Track {
   targetDevice?: string; // e.g. "Mixer 1"
 }
 
+export interface PlaylistClip {
+  id: string;
+  type: 'pattern' | 'audio';
+  name: string;
+  start: number; // in 16ths
+  duration: number; // in 16ths
+  lane: number;
+  patternId?: string;
+  audioUrl?: string;
+  color?: string;
+}
+
 export interface DawState {
   tracks: Track[];
+  playlistClips: PlaylistClip[];
+  selectedPlaylistClipIds: string[];
+  currentPatternId: string;
   bpm: number;
   isPlaying: boolean;
   playheadPosition: number; // 0 to 32+ (continuous)
@@ -66,6 +81,10 @@ export interface DawState {
   setLastNoteDuration: (val: number) => void;
   setLoopPoints: (start: number, end: number) => void;
   setLoopActive: (active: boolean) => void;
+  addPlaylistClip: (clip: PlaylistClip) => void;
+  updatePlaylistClip: (clipId: string, updates: Partial<PlaylistClip>) => void;
+  removePlaylistClip: (clipId: string) => void;
+  setSelectedPlaylistClipIds: (ids: string[]) => void;
   setActiveWindow: (window: 'pianoRoll' | 'channelSettings' | null) => void;
   setIsChannelRackOpen: (val: boolean) => void;
   setState: (state: Partial<DawState>) => void;
@@ -89,6 +108,20 @@ export const useDawStore = create<DawState>((set) => ({
       delayFeedback: 0,
     }
   ],
+  playlistClips: [
+    {
+      id: 'clip-pattern-1',
+      type: 'pattern',
+      name: 'Pattern 1',
+      start: 0,
+      duration: 16,
+      lane: 0,
+      patternId: 'pattern-1',
+      color: '#8dcc6c',
+    }
+  ],
+  selectedPlaylistClipIds: ['clip-pattern-1'],
+  currentPatternId: 'pattern-1',
   bpm: 120,
   isPlaying: false,
   playheadPosition: 0,
@@ -172,6 +205,18 @@ export const useDawStore = create<DawState>((set) => ({
   setLastNoteDuration: (val) => set({ lastNoteDuration: val }),
   setLoopPoints: (start, end) => set({ loopStart: start, loopEnd: end }),
   setLoopActive: (active) => set({ loopActive: active }),
+  addPlaylistClip: (clip) => set((state) => ({
+    playlistClips: [...state.playlistClips, clip],
+    selectedPlaylistClipIds: [clip.id],
+  })),
+  updatePlaylistClip: (clipId, updates) => set((state) => ({
+    playlistClips: state.playlistClips.map(clip => clip.id === clipId ? { ...clip, ...updates } : clip)
+  })),
+  removePlaylistClip: (clipId) => set((state) => ({
+    playlistClips: state.playlistClips.filter(clip => clip.id !== clipId),
+    selectedPlaylistClipIds: state.selectedPlaylistClipIds.filter(id => id !== clipId),
+  })),
+  setSelectedPlaylistClipIds: (selectedPlaylistClipIds) => set({ selectedPlaylistClipIds }),
   setActiveWindow: (window) => set({ activeWindow: window }),
   setIsChannelRackOpen: (val) => set({ isChannelRackOpen: val }),
   setState: (newState) => set((state) => ({ ...state, ...newState }))

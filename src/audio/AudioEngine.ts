@@ -4,6 +4,8 @@ import { useDawStore } from '../store/useDawStore';
 class AudioEngine {
   private instruments: Map<string, Tone.PolySynth | Tone.Sampler> = new Map();
   private parts: Map<string, Tone.Part> = new Map();
+  private clipPlayers: Map<string, Tone.Player> = new Map();
+  private clipParts: Map<string, Tone.Part> = new Map();
   private initialized = false;
   private suppressStoreTransportUntil = 0;
   
@@ -62,8 +64,10 @@ class AudioEngine {
   }
 
   private updateLoopPoints(start: number, end: number, active: boolean) {
+    const ticksPerSixteenth = Tone.Transport.PPQ / 4;
     if (active) {
-        Tone.Transport.setLoopPoints({ '16n': start }, { '16n': end });
+        Tone.Transport.loopStart = `${Math.max(0, Math.round(start * ticksPerSixteenth))}i`;
+        Tone.Transport.loopEnd = `${Math.max(1, Math.round(end * ticksPerSixteenth))}i`;
         Tone.Transport.loop = true;
      } else {
         Tone.Transport.loop = false;
@@ -95,6 +99,10 @@ class AudioEngine {
        this.updateLoopPoints(state.loopStart, state.loopEnd, state.loopActive);
     }
 
+    const patternClips = state.playlistClips?.filter((clip: any) => clip.type === 'pattern') || [];
+    const audioClips = state.playlistClips?.filter((clip: any) => clip.type === 'audio' && clip.audioUrl) || [];
+    const arrangeFromPlaylist = patternClips.length > 0;
+
     const activeTrackIds = new Set(state.tracks.map((track: any) => track.id));
     this.parts.forEach((part, trackId) => {
       if (!activeTrackIds.has(trackId)) {
@@ -108,6 +116,8 @@ class AudioEngine {
         this.instruments.delete(trackId);
       }
     });
+
+    const playlistChanged = state.playlistClips !== prevState?.playlistClips;
 
     state.tracks.forEach((track: any) => {
       const prevTrack = prevState?.tracks?.find((t: any) => t.id === track.id);
@@ -158,13 +168,20 @@ class AudioEngine {
       }
 
       // ONLY reschedule if the track's notes actually changed or if it just got initialized!
-      if (!prevTrack || prevTrack.notes !== track.notes || shouldRecreate) {
+      if (!prevTrack || prevTrack.notes !== track.notes || playlistChanged || shouldRecreate) {
           if (this.parts.has(track.id)) {
             this.parts.get(track.id)!.dispose();
             this.parts.delete(track.id);
           }
 
-          const partEvents = track.notes.map((note: any) => {
+          const sourceEvents = arrangeFromPlaylist
+            ? patternClips.flatMap((clip: any) => track.notes.map((note: any) => ({
+                ...note,
+                time: clip.start + note.time,
+              })))
+            : track.notes;
+
+          const partEvents = sourceEvents.map((note: any) => {
               return { 
                   time: Math.round(note.time * (Tone.Transport.PPQ / 4)) + "i", 
                   pitch: note.pitch, 
@@ -179,6 +196,43 @@ class AudioEngine {
 
           part.loop = false; // We use Transport loop
           this.parts.set(track.id, part);
+      }
+    });
+
+    const activeClipIds = new Set(audioClips.map((clip: any) => clip.id));
+    this.clipParts.forEach((part, clipId) => {
+      if (!activeClipIds.has(clipId)) {
+        part.dispose();
+        this.clipParts.delete(clipId);
+      }
+    });
+    this.clipPlayers.forEach((player, clipId) => {
+      if (!activeClipIds.has(clipId)) {
+        player.dispose();
+        this.clipPlayers.delete(clipId);
+      }
+    });
+
+    audioClips.forEach((clip: any) => {
+      const prevClip = prevState?.playlistClips?.find((c: any) => c.id === clip.id);
+      const shouldRecreate = !this.clipPlayers.has(clip.id) || prevClip?.audioUrl !== clip.audioUrl || prevClip?.start !== clip.start;
+
+      if (shouldRecreate) {
+        if (this.clipParts.has(clip.id)) {
+          this.clipParts.get(clip.id)!.dispose();
+          this.clipParts.delete(clip.id);
+        }
+        if (this.clipPlayers.has(clip.id)) {
+          this.clipPlayers.get(clip.id)!.dispose();
+          this.clipPlayers.delete(clip.id);
+        }
+
+        const player = new Tone.Player({ url: clip.audioUrl }).toDestination();
+        this.clipPlayers.set(clip.id, player);
+        const part = new Tone.Part((time) => {
+          player.start(time);
+        }, [{ time: Math.round(clip.start * (Tone.Transport.PPQ / 4)) + "i" }]).start(0);
+        this.clipParts.set(clip.id, part);
       }
     });
   }

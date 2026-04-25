@@ -8,8 +8,8 @@ import ChannelSettings from '../components/ChannelSettings';
 import PianoRoll from '../components/PianoRoll';
 import FlToolbar from '../components/FlToolbar';
 import CursorsOverlay from '../components/CursorsOverlay';
-import Browser from '../components/Browser';
 import ChannelRack from '../components/ChannelRack';
+import Playlist from '../components/Playlist';
 import { engine } from '../audio/AudioEngine';
 import * as Tone from 'tone';
 import { applyDawSnapshot, createDawSnapshot, type DawSnapshot } from '../store/networkState';
@@ -453,9 +453,6 @@ export default function Room() {
 
       {/* Main Workspace */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Left Side Browser */}
-        <Browser />
-
         {/* Desktop Surface */}
         <div className="flex-1 relative overflow-hidden bg-[var(--fl-bg-dark)]">
            
@@ -470,13 +467,7 @@ export default function Room() {
               />
            )}
            
-           {/* Authentic Desktop Background Textures */}
-           <div className="absolute inset-0 pointer-events-none opacity-5" 
-                style={{ backgroundImage: 'linear-gradient(var(--fl-border) 1px, transparent 1px), linear-gradient(90deg, var(--fl-border) 1px, transparent 1px)', backgroundSize: '15px 15px' }} />
-           
-           <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.04]">
-              <h1 className="text-[140px] font-black italic tracking-tighter text-white drop-shadow-2xl">FL STUDIO</h1>
-           </div>
+           <Playlist />
 
            {/* Overlays */}
            {role === 'judge' && room.users.some(u => u.role !== 'judge') && (

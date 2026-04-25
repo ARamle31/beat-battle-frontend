@@ -5,6 +5,7 @@ import { useLobbyStore } from '../store/useLobbyStore';
 import { socket } from '../socket/socket';
 import { engine } from '../audio/AudioEngine';
 import { Pencil, Brush, Ban, Magnet } from 'lucide-react';
+import { blobToDataUrl, renderNotesToWavClip } from '../audio/renderPattern';
 
 const generateNotes = () => {
     const arr: string[] = [];
@@ -18,6 +19,27 @@ const NOTES = generateNotes();
 const STEPS = 128; // Extended
 const CELL_WIDTH = 30; 
 const CELL_HEIGHT = 16; // Thinner to fit more octaves smoothly
+
+const getBackendUrl = () => {
+  const envBackend = import.meta.env.VITE_BACKEND_URL;
+  if (envBackend) return envBackend;
+  return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3001'
+    : `http://${window.location.hostname}:3001`;
+};
+
+const uploadRenderedWav = async (blob: Blob, trackName: string) => {
+  const formData = new FormData();
+  const safeName = trackName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'render';
+  formData.append('sample', blob, `${safeName}-${Date.now()}.wav`);
+  const response = await fetch(`${getBackendUrl()}/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) throw new Error('Render upload failed');
+  const data = await response.json();
+  return data.url as string;
+};
 
 export default function PianoRoll() {
   const { 
@@ -56,6 +78,9 @@ export default function PianoRoll() {
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const keysContainerRef = useRef<HTMLDivElement>(null);
   const rulerContainerRef = useRef<HTMLDivElement>(null);
+  const velocityContainerRef = useRef<HTMLDivElement>(null);
+  const suppressScrollBroadcastRef = useRef(false);
+  const lastScrollEmitRef = useRef(0);
   
   // Independent playhead GPU tracking avoiding massive React DOM flushes
   const playheadRef = useRef<HTMLDivElement>(null);
@@ -83,6 +108,23 @@ export default function PianoRoll() {
   const handleGridScroll = (e: React.UIEvent<HTMLDivElement>) => {
      if (keysContainerRef.current) keysContainerRef.current.scrollTop = e.currentTarget.scrollTop;
      if (rulerContainerRef.current) rulerContainerRef.current.scrollLeft = e.currentTarget.scrollLeft;
+     if (velocityContainerRef.current) velocityContainerRef.current.scrollLeft = e.currentTarget.scrollLeft;
+
+     if (!isProducer || !room?.id || suppressScrollBroadcastRef.current) return;
+     const now = performance.now();
+     if (now - lastScrollEmitRef.current < 60) return;
+     lastScrollEmitRef.current = now;
+
+     socket.volatile.emit('ui_interaction', {
+       roomId: room.id,
+       type: 'piano_roll_scroll',
+       value: {
+         scrollLeft: e.currentTarget.scrollLeft,
+         scrollTop: e.currentTarget.scrollTop,
+         xRatio: e.currentTarget.scrollLeft / Math.max(1, e.currentTarget.scrollWidth - e.currentTarget.clientWidth),
+         yRatio: e.currentTarget.scrollTop / Math.max(1, e.currentTarget.scrollHeight - e.currentTarget.clientHeight),
+       }
+     });
   };
 
   const handleKeysWheel = (e: React.WheelEvent) => {
@@ -103,10 +145,73 @@ export default function PianoRoll() {
      }
   }, [selectedTrackId]); // Re-center occasionally when swapping
 
+  useEffect(() => {
+    const handleUiInteraction = (data: any) => {
+      if (data.senderId === socket.id || data.type !== 'piano_roll_scroll') return;
+      const lobby = useLobbyStore.getState();
+      const currentRoom = lobby.room;
+      const shouldApply =
+        (lobby.role === 'judge' && lobby.judgeWatching === data.username) ||
+        currentRoom?.mode === 'multiplayer';
+      const grid = gridContainerRef.current;
+      if (!shouldApply || !grid) return;
+
+      const maxLeft = Math.max(1, grid.scrollWidth - grid.clientWidth);
+      const maxTop = Math.max(1, grid.scrollHeight - grid.clientHeight);
+      suppressScrollBroadcastRef.current = true;
+      grid.scrollLeft = typeof data.value?.xRatio === 'number' ? data.value.xRatio * maxLeft : data.value?.scrollLeft || 0;
+      grid.scrollTop = typeof data.value?.yRatio === 'number' ? data.value.yRatio * maxTop : data.value?.scrollTop || 0;
+      if (keysContainerRef.current) keysContainerRef.current.scrollTop = grid.scrollTop;
+      if (rulerContainerRef.current) rulerContainerRef.current.scrollLeft = grid.scrollLeft;
+      if (velocityContainerRef.current) velocityContainerRef.current.scrollLeft = grid.scrollLeft;
+      requestAnimationFrame(() => {
+        suppressScrollBroadcastRef.current = false;
+      });
+    };
+
+    socket.on('ui_interaction', handleUiInteraction);
+    return () => {
+      socket.off('ui_interaction', handleUiInteraction);
+    };
+  }, []);
+
   // Keyboard Shortcuts
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
       if (document.activeElement?.tagName === 'INPUT' || !isProducer || !isMatchActive || !selectedTrackId) return;
+
+      if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'c') {
+          e.preventDefault();
+          const state = useDawStore.getState();
+          const track = state.tracks.find(t => t.id === selectedTrackId);
+          if (!track) return;
+          const targetNotes = selectedNoteIds.length > 0
+            ? track.notes.filter(note => selectedNoteIds.includes(note.id))
+            : track.notes;
+          if (targetNotes.length === 0) return;
+
+          const rendered = await renderNotesToWavClip(track, targetNotes, state.bpm);
+          if (!rendered) return;
+          let audioUrl = rendered.url;
+          try {
+            audioUrl = await uploadRenderedWav(rendered.blob, track.name);
+          } catch (error) {
+            console.warn('Falling back to local render URL; remote upload failed.', error);
+            audioUrl = await blobToDataUrl(rendered.blob);
+          }
+
+          useDawStore.getState().addPlaylistClip({
+            id: `clip-audio-${Date.now()}-${Math.random()}`,
+            type: 'audio',
+            name: `${track.name} render`,
+            start: rendered.startStep,
+            duration: rendered.durationSteps,
+            lane: 1,
+            audioUrl,
+            color: '#58b8d8',
+          });
+          return;
+      }
       
       // Undo / Redo
       if (e.ctrlKey && e.key.toLowerCase() === 'z' && !e.shiftKey) {
@@ -676,7 +781,7 @@ export default function PianoRoll() {
               <div className="text-[var(--fl-text)] opacity-80 mt-1">Velocity</div>
            </div>
            
-           <div className="flex-1 overflow-hidden" ref={(el) => { if(el && gridContainerRef.current) { el.scrollLeft = gridContainerRef.current.scrollLeft }}}>
+           <div className="flex-1 overflow-hidden" ref={velocityContainerRef}>
                 <div className="h-full flex items-end relative border-b border-[var(--fl-border)] bg-[#22272A] pb-[1px]" style={{ width: STEPS * CELL_WIDTH }}>
                    <div className="absolute inset-0 pointer-events-none" style={{
                       backgroundSize: `${CELL_WIDTH * 4}px 100%`,

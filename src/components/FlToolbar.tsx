@@ -49,6 +49,25 @@ export default function FlToolbar({
       });
     }
   };
+
+  const stopPlayback = async () => {
+    if (!audioInited) {
+      await engine.init();
+      setAudioInited(true);
+    }
+    const state = useDawStore.getState();
+    engine.stopTransport(state.loopStart);
+    setIsPlaying(false);
+    if (room?.id) {
+      socket.emit('transport_control', {
+        roomId: room.id,
+        action: 'stop',
+        ticks: state.loopStart * (Tone.Transport.PPQ / 4),
+        bpm,
+        serverStartAt: getServerNow(),
+      });
+    }
+  };
   
   const formatTime = (seconds: number) => {
     if (!seconds) return '0:00';
@@ -258,7 +277,7 @@ export default function FlToolbar({
                <button onClick={() => isProducer && togglePlayback()} className={`w-[34px] h-[34px] bg-gradient-to-b from-[#3a444a] to-[#2a3034] border border-[#111] border-b-[#4f585d] flex items-center justify-center rounded-[3px] shadow-[0_1px_2px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] hover:brightness-125 ${isPlaying ? 'bg-gradient-to-b from-[#1a1e22] to-[#111] shadow-[inset_1px_1px_3px_rgba(0,0,0,0.8)] border-b-[#111]' : ''}`}>
                  <div className={`w-0 h-0 border-t-[6px] border-b-[6px] border-l-[9px] border-transparent ${isPlaying ? 'border-l-[var(--fl-green)] drop-shadow-[0_0_4px_var(--fl-green)]' : 'border-l-[var(--fl-text-bright)]'}`} />
                </button>
-               <button onClick={() => isProducer && setIsPlaying(false)} className="w-[34px] h-[34px] bg-gradient-to-b from-[#3a444a] to-[#2a3034] border border-[#111] border-b-[#4f585d] flex items-center justify-center rounded-[3px] shadow-[0_1px_2px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] hover:brightness-125">
+               <button onClick={() => isProducer && stopPlayback()} className="w-[34px] h-[34px] bg-gradient-to-b from-[#3a444a] to-[#2a3034] border border-[#111] border-b-[#4f585d] flex items-center justify-center rounded-[3px] shadow-[0_1px_2px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] hover:brightness-125">
                  <div className="w-[10px] h-[10px] bg-[var(--fl-text-bright)]" />
                </button>
                <button className="w-[34px] h-[34px] bg-gradient-to-b from-[#3a444a] to-[#2a3034] border border-[#111] border-b-[#4f585d] flex items-center justify-center rounded-[3px] shadow-[0_1px_2px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.1)] hover:brightness-125">

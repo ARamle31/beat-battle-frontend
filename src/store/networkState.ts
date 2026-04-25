@@ -3,6 +3,9 @@ import { useDawStore, type DawState } from './useDawStore';
 export type DawSnapshot = Pick<
   DawState,
   | 'tracks'
+  | 'playlistClips'
+  | 'selectedPlaylistClipIds'
+  | 'currentPatternId'
   | 'bpm'
   | 'isPlaying'
   | 'playheadPosition'
@@ -19,6 +22,9 @@ export type DawSnapshot = Pick<
 
 export const createDawSnapshot = (state: DawState): DawSnapshot => ({
   tracks: state.tracks,
+  playlistClips: state.playlistClips,
+  selectedPlaylistClipIds: state.selectedPlaylistClipIds,
+  currentPatternId: state.currentPatternId,
   bpm: state.bpm,
   isPlaying: state.isPlaying,
   playheadPosition: state.playheadPosition,
